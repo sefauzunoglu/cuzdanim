@@ -200,13 +200,15 @@ const ICO={
  wallet:'<path d="M4 7h14a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2V7zM4 7l12-3v3M16 13.5h.01"/>',gear:'<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>'};
 const ico=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[n]}</svg>`;
 const CATICO={Market:'cart',Yemek:'food',Ulaşım:'bus',Fatura:'bolt',Sağlık:'heart',Giyim:'shirt',Eğlence:'film',Ev:'home',Eğitim:'book',Araba:'car',Kişisel:'user','Altın günü':'debt',Diğer:'dots'};
+const BANKS=['Garanti BBVA','Akbank','İş Bankası','Yapı Kredi','Ziraat','QNB','Halkbank','VakıfBank','Denizbank','Enpara'];
+const bankChips=(t,suf)=>`<div class="f"><span>Banka (hızlı seç, istersen aşağıya kendin yaz)</span><div class="chips scroll">${BANKS.map(b=>`<button type="button" class="chip" data-act="bank" data-t="${t}" data-n="${esc(b+suf)}">${esc(b)}</button>`).join('')}</div></div>`;
 const iconsOn=()=>!(S.cfg&&S.cfg.noIcons);
 const hue=n=>{let h=0;for(const c of String(n))h=(h*31+c.charCodeAt(0))%360;return h};
 const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl(${hue(n)} 45% 42%)">${esc((String(n).trim()[0]||'?').toLocaleUpperCase('tr-TR'))}</span>`:'';
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=13;
+const KEY='cuzdanim_v1',VER=14;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -546,7 +548,7 @@ function payCard(id){const c=find(S.cards,id),i=cardInfo(c);
    save(){const amt=N('p_amt');if(!(amt>0)){toast('Tutarı gir');return false}S.cardPay.push({id:uid(),card:id,amt,from:V('p_from')||'',date:V('p_date')||today()});save();toast('Ödeme kaydedildi')}})}
 A.payCard=d=>payCard(d.id);A.pf=d=>setV('p_amt',nv(+d.v));
 function editCard(d){const c=d&&d.id?find(S.cards,d.id):null;
-  openSheet({title:c?'Kartı düzenle':'Kart ekle',body:`${fld('c_name','Kart adı',c?c.name:'',{ph:'örn. Ana kart'})}${fld('c_limit','Limit (₺)',c?nv(c.limit):'',{t:'num'})}
+  openSheet({title:c?'Kartı düzenle':'Kart ekle',body:`${c?'':bankChips('c_name',' kartı')}${fld('c_name','Kart adı',c?c.name:'',{ph:'örn. Garanti Bonus'})}${fld('c_limit','Limit (₺)',c?nv(c.limit):'',{t:'num'})}
   <div class="f2">${fld('c_cut','Hesap kesim günü',c?c.cutoff:'',{t:'num',ph:'1-31'})}${fld('c_due','Son ödeme günü',c?c.due:'',{t:'num',ph:'1-31'})}</div>
   ${fld('c_mina','Asgari ödeme oranı',c&&c.minAuto===false?'0':'1',{t:'chips',opts:[['1','Otomatik (BDDK)'],['0','Elle gir']]})}${fld('c_min','Asgari oran (%)',c?c.minRate:20,{t:'num'})}
   ${fld('c_ratea','Aylık faiz',c&&c.rateAuto===false?'0':'1',{t:'chips',opts:[['1','Otomatik (TCMB azami)'],['0','Elle gir']]})}${fld('c_rate','Aylık faiz (%)',c?c.rate:4,{t:'num'})}
@@ -696,7 +698,7 @@ function vAcc(){
   ${inc>0?`<div class="note">Bu ay gelen: ${fmtI(inc)} · Hesaplardan çıkan: ${fmtI(tot)}</div>`:''}</div></section>`}
 A.editAcc=d=>editAcc(d);
 function editAcc(d){const x=d&&d.id?find(S.accounts,d.id):null;
-  openSheet({title:x?'Hesabı düzenle':'Hesap ekle',body:`${fld('h_type','Tür',x?x.type:'cash',{t:'chips',opts:[['cash','Elde nakit'],['bank','Banka hesabı']]})}${fld('h_name','Ad',x?x.name:'',{ph:'örn. Cüzdan, Maaş hesabı'})}${fld('h_open','Başlangıç bakiyesi (₺)',x?nv(x.opening):'',{t:'num'})}<div class="note">Bakiye; girdiğin gelir, harcama, transfer ve ödemelerle otomatik güncellenir.</div>`,
+  openSheet({title:x?'Hesabı düzenle':'Hesap ekle',body:`${fld('h_type','Tür',x?x.type:'cash',{t:'chips',opts:[['cash','Elde nakit'],['bank','Banka hesabı']]})}${x?'':bankChips('h_name',' hesabı')}${fld('h_name','Ad',x?x.name:'',{ph:'örn. Cüzdan, Maaş hesabı'})}${fld('h_open','Başlangıç bakiyesi (₺)',x?nv(x.opening):'',{t:'num'})}<div class="note">Bakiye; girdiğin gelir, harcama, transfer ve ödemelerle otomatik güncellenir.</div>`,
    save(){const n=V('h_name').trim();if(!n){toast('Ad gir');return false}const o={type:V('h_type'),name:n,opening:N('h_open')};if(x)Object.assign(x,o);else S.accounts.push(Object.assign({id:uid()},o));save()},
    del:x?()=>confirmSheet('Hesabı sil',esc(x.name)+' silinsin mi? Bu hesaptaki harcama kayıtları da silinir.',()=>{S.tx=S.tx.filter(t=>t.src!=='acc:'+x.id);S.incomes=S.incomes.filter(i=>i.acc!==x.id);S.transfers=S.transfers.filter(t=>t.from!==x.id);S.accounts.splice(S.accounts.indexOf(x),1);save()}):null})}
 
@@ -797,6 +799,7 @@ A.dlBk=()=>{try{const a=document.createElement('a');a.href=URL.createObjectURL(n
 A.imp=()=>openSheet({title:'Geri yükle',body:`<label class="f"><span>Yedek dosyasını seç</span><input id="rf" type="file" accept=".json,application/json,text/plain"></label><div class="f"><span>veya yedek metnini yapıştır</span><textarea id="rs" placeholder="Yedek metni"></textarea></div><div class="note">Mevcut verinin yerine geçer.</div>`,saveLabel:'Geri yükle',save(){try{const o=JSON.parse($('#rs').value);if(!o||!Array.isArray(o.tx))throw 0;S=Object.assign(emptyData(),o);S.meta=S.meta||{};save();toast('Geri yüklendi')}catch(e){toast('Önce dosya seç veya metni yapıştır');return false}}});
 document.addEventListener('change',e=>{if(e.target.id==='rf'){const f=e.target.files[0];if(f)f.text().then(t=>{const r=$('#rs');if(r)r.value=t;toast('Dosya okundu, Geri yükle\'ye bas')})}});
 A.icons=d=>{S.cfg.noIcons=d.v==='0';save();toast(d.v==='0'?'Simgeler kapatıldı':'Simgeler açıldı')};
+A.bank=d=>{const e=$('#'+d.t);if(!e)return;e.value=d.n;if(d.t==='h_name')setV('h_type','bank');if(hook)hook()};
 A.theme=d=>{if(d.v)document.documentElement.dataset.theme=d.v;else delete document.documentElement.dataset.theme;try{localStorage.setItem(KEY+'_theme',d.v)}catch(e){}};
 try{const th=localStorage.getItem(KEY+'_theme');if(th)document.documentElement.dataset.theme=th}catch(e){}
 A.upd=async()=>{toast('Güncelleniyor…');try{if('serviceWorker'in navigator){const rs=await navigator.serviceWorker.getRegistrations();for(const r of rs)await r.unregister()}if(window.caches){for(const k of await caches.keys())await caches.delete(k)}}catch(e){}setTimeout(()=>location.reload(),400)};
