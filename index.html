@@ -139,6 +139,10 @@ h2 button{font-size:13px;color:var(--accent);text-transform:none;letter-spacing:
 .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:6px;flex-wrap:wrap}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .note{font-size:12.5px;color:var(--muted);margin:8px 2px}
+.gms{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:12px}
+.gm{background:var(--surface2);border-radius:11px;padding:7px 2px;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--muted);position:relative;border:1.5px solid transparent;min-height:50px}
+.gm b{font-size:13px;color:var(--ink)}.gm.p{background:var(--good-soft);color:var(--good)}.gm.p b{color:var(--good)}.gm.p::after{content:"✓";position:absolute;top:2px;right:5px;font-size:10px}
+.gm.t{border-color:var(--accent)}.gm i{font-style:normal;font-size:9px;font-weight:800;color:var(--accent);letter-spacing:.04em}
 textarea{width:100%;min-height:120px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);padding:10px;font-size:12px}
 @media (prefers-reduced-motion:no-preference){#sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(40px);opacity:.6}}}
 </style>
@@ -191,8 +195,8 @@ const ICO={
 const ico=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[n]}</svg>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=7;
-const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],cfg:{goldPrice:0},meta:{}});
+const KEY='cuzdanim_v1',VER=8;
+const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
   return mem?Object.assign(emptyData(),JSON.parse(mem)):emptyData()}
@@ -265,11 +269,19 @@ async function goldFetch(silent){
       if(p.gram>0){S.cfg.gold=Object.assign({},S.cfg.gold,p,{updated:Date.now(),live:true});persist();render();if(!silent)toast('Altın fiyatları güncellendi');return true}}catch(e){}}
   if(!silent)toast('Canlı fiyat alınamadı. Fiyatları elle girebilirsin.');return false}
 const debtNote=d=>({loan:'Kredi',gold:'Altın borcu',person:'Şahsi borç',other:'Diğer borç'}[d.type]);
+const gunY=(g,k)=>ymOf(pd(g.first))+k, gunDay=g=>pd(g.first).getDate();
+const gunC=g=>g.kind==='gold'?(+g.qty||0)*gp(g.unit||'gram'):(+g.amt||0);
+const gunPaid=(g,k)=>{const v=(g.paid||{})[k];return v===true||!!(v&&find(S.tx,v))};
+const gunLeft=g=>{let c=0;for(let k=0;k<g.n;k++)if(!gunPaid(g,k))c++;return c};
+const gunNext=g=>{for(let k=0;k<g.n;k++)if(!gunPaid(g,k))return k;return -1};
+const gunPot=g=>g.n*gunC(g);
+const gunDebtTL=g=>g.recv&&g.recv.done?gunLeft(g)*gunC(g):0;
+const gunDesc=g=>g.kind==='gold'?pc(g.qty||0)+' '+(GU.find(u=>u[0]===(g.unit||'gram'))||GU[0])[1]:fmtI(g.amt||0);
 function totals(){
   const ci=S.cards.map(cardInfo);
   const cardDebt=sum(ci,x=>x.currentDebt), inst=sum(ci,x=>x.future);
-  const other=sum(S.debts,debtBal);
-  return {cardDebt,inst,other,total:cardDebt+other,load:cardDebt+other+inst,cash:cashTotal(),ci}}
+  const gunDebt=sum(S.gun,gunDebtTL),other=sum(S.debts,debtBal)+gunDebt;
+  return {gunDebt,cardDebt,inst,other,total:cardDebt+other,load:cardDebt+other+inst,cash:cashTotal(),ci}}
 function parts(t){const n=t.inst||1,b=ymOf(pd(t.date));const o=[];for(let k=0;k<n;k++)o.push({tx:t,ym:b+k,amt:t.amt/n,k,n});return o}
 const monthParts=ym=>S.tx.flatMap(parts).filter(p=>p.ym===ym);
 const monthIncome=ym=>sum(S.incomes.filter(i=>ymOf(pd(i.date))===ym),i=>i.amt);
@@ -284,6 +296,8 @@ function upcoming(days=14){
   S.debts.forEach(dt=>{if(!(dt.monthly>0)||!dt.day)return;
     const paidM=S.debtPay.some(p=>p.debt===dt.id&&ymOf(pd(p.date))===cm&&p.amt>=dt.monthly*.99);
     out.push({d:dateAt(paidM?cm+1:cm,dt.day),t:dt.name,s:debtNote(dt)+' taksiti',amt:dt.monthly,k:'debt',id:dt.id,out:true})});
+  S.gun.forEach(g=>{const k=gunNext(g);if(k>=0)out.push({d:dateAt(gunY(g,k),gunDay(g)),t:g.name+' ('+(k+1)+'/'+g.n+')',s:(g.kind==='gold'?'Altın günü · '+gunDesc(g):'Para günü'),amt:gunC(g),k:'gun',id:g.id,m:k,out:true});
+    if(!(g.recv&&g.recv.done))out.push({d:dateAt(gunY(g,g.turn-1),gunDay(g)),t:g.name+' alacağı',s:'Sıra sende · '+(g.kind==='gold'?gunDesc({kind:'gold',unit:g.unit,qty:g.qty*g.n}):''),amt:gunPot(g),k:'gunr',id:g.id,out:false})});
   return out.filter(x=>daysTo(x.d)<=days).sort((a,b)=>a.d-b.d)}
 function freeCash(){
   const cm=ymOf(new Date());
@@ -291,7 +305,7 @@ function freeCash(){
   if(!inc){const ms=[cm-1,cm-2,cm-3].map(monthIncome).filter(x=>x>0);inc=ms.length?sum(ms)/ms.length:0}
   const fixed=recMonthly();
   const ins=sum(S.cards.map(cardInfo),i=>sum(i.ch.filter(x=>x.idx===i.cur+1&&x.n>1),x=>x.amt));
-  const debtM=sum(S.debts,d=>d.monthly);
+  const debtM=sum(S.debts,d=>d.monthly)+sum(S.gun.filter(g=>gunLeft(g)>0),gunC);
   const vp=[cm-1,cm-2,cm-3].map(m=>sum(monthParts(m).filter(p=>p.n===1&&!p.tx.rec),p=>p.amt)).filter(x=>x>0);
   const vari=vp.length?sum(vp)/vp.length:0;
   return {inc,fixed,ins,debtM,vari,free:inc-fixed-ins-debtM-vari}}
@@ -340,9 +354,9 @@ A.quick=()=>openExpense();
 /* ============ ana ekran ============ */
 function render(){
   const v=ui.view,y=window.scrollY;
-  const titles={home:['Özet',''],spend:['Harcamalar',''],cards:['Kartlar',''],debts:['Borçlar',''],more:['Daha fazla',''],income:['Gelir ve transfer',''],fixed:['Sabit giderler','Kira, fatura, abonelik'],car:['Araba',''],scen:['Borçtan çıkış','Senaryo denemesi'],acc:['Hesaplar ve nakit akışı',''],set:['Ayarlar','Yedek ve veri']};
+  const titles={home:['Özet',''],spend:['Harcamalar',''],cards:['Kartlar',''],debts:['Borçlar',''],more:['Daha fazla',''],income:['Gelir ve transfer',''],fixed:['Sabit giderler','Kira, fatura, abonelik'],car:['Araba',''],scen:['Borçtan çıkış','Senaryo denemesi'],gun:['Altın / para günü','Ay ay ödeme ve alacak'],acc:['Hesaplar ve nakit akışı',''],set:['Ayarlar','Yedek ve veri']};
   const T=titles[v]||['',''];
-  const views={home:vHome,spend:vSpend,cards:vCards,debts:vDebts,more:vMore,income:vIncome,fixed:vFixed,car:vCar,scen:vScen,acc:vAcc,set:vSet};
+  const views={home:vHome,spend:vSpend,cards:vCards,debts:vDebts,more:vMore,income:vIncome,fixed:vFixed,car:vCar,scen:vScen,gun:vGun,acc:vAcc,set:vSet};
   const main=MAIN.includes(v);
   $('#app').innerHTML=`<header class="top">${main?'':`<button class="ib" data-act="back" aria-label="Geri">${ico('back')}</button>`}
     <h1>${T[0]}${T[1]?`<small>${T[1]}</small>`:''}</h1>${main?`<button class="ib" data-act="more" aria-label="Daha fazla">${ico('grid')}</button>`:''}</header>${views[v]()}`;
@@ -377,7 +391,7 @@ A.allTips=()=>openSheet({title:'Tüm öneriler',body:advice().map(tipH).join('')
 function upRow(u){const dd=daysTo(u.d),lab=dd<0?`${-dd} gün gecikti`:dd===0?'Bugün':dd===1?'Yarın':dd+' gün';
   const cls=dd<0&&u.out?'bad':dd<=3&&u.out?'warn':'';
   return `<button class="row" data-act="upPay" data-k="${u.k}" data-id="${u.id}" ${u.m!=null?`data-m="${u.m}"`:''}><div class="mid"><div class="t">${esc(u.t)}</div><div class="s">${dshort(u.d)} · ${esc(u.s)}</div></div><div class="amt num ${u.out?'':'good'}">${u.out?'':'+'}${fmtI(u.amt)}<small><span class="pill ${cls}">${lab}</span></small></div></button>`}
-A.upPay=d=>{if(d.k==='card')return payCard(d.id);if(d.k==='rec')return payRec(d.id,+d.m);if(d.k==='inc')return gotIncome(d.id,+d.m);if(d.k==='debt')return payDebt(d.id)};
+A.upPay=d=>{if(d.k==='card')return payCard(d.id);if(d.k==='rec')return payRec(d.id,+d.m);if(d.k==='inc')return gotIncome(d.id,+d.m);if(d.k==='debt')return payDebt(d.id);if(d.k==='gun')return gunPay(d.id,+d.m);if(d.k==='gunr')return gunRecv(d.id)};
 function instChart(){
   const cur=ymOf(new Date()),cs=S.cards.map(c=>({c,i:cardInfo(c)}));
   const data=[];for(let k=1;k<=6;k++)data.push({k,amt:sum(cs,x=>sum(x.i.ch.filter(z=>z.idx===x.i.cur+k-1+(x.i.cur-cur)*0&&z.n>1),z=>z.amt))});
@@ -542,8 +556,9 @@ function vDebts(){
   const t=totals(),gd=S.cfg.gold||{};
   const cardRows=S.cards.map((c,i)=>`<button class="row" data-act="cardOpen" data-id="${c.id}"><span class="dot" style="background:var(--c1)"></span><div class="mid"><div class="t">${esc(c.name)}</div><div class="s">Kredi kartı · limit %${Math.round(t.ci[i].util*100)} dolu${t.ci[i].future>0?' · taksit '+fmtI(t.ci[i].future):''}</div></div><div class="amt num">${fmtI(t.ci[i].currentDebt)}</div></button>`).join('');
   const dRows=S.debts.map(d=>{const b=debtBal(d);return `<button class="row" data-act="debtOpen" data-id="${d.id}"><span class="dot" style="background:${d.type==='gold'?'var(--c2)':d.type==='loan'?'var(--c4)':'var(--c5)'}"></span><div class="mid"><div class="t">${esc(d.name)}</div><div class="s">${debtNote(d)}${d.type==='gold'?` · ${goldDesc(d)}`:''}${d.monthly?` · aylık ${fmtI(d.monthly)}`:''}${d.type==='loan'&&d.monthly>0?` · ~${Math.ceil(d.remaining/d.monthly)} ay`:''}</div></div><div class="amt num">${fmtI(b)}</div></button>`}).join('');
+  const gRows=S.gun.filter(g=>gunDebtTL(g)>0).map(g=>`<button class="row" data-act="go" data-v="gun"><span class="dot" style="background:var(--c2)"></span><div class="mid"><div class="t">${esc(g.name)}</div><div class="s">Altın günü · alacağını aldın, kalan ${gunLeft(g)} ay ödeme</div></div><div class="amt num">${fmtI(gunDebtTL(g))}</div></button>`).join('');
   return `<div class="hero"><div class="lbl">Toplam borç</div><div class="big num">${fmtI(t.total)}</div><div class="sub"><div><b class="num">${fmtI(t.cardDebt)}</b><span>Kart</span></div><div><b class="num">${fmtI(t.other)}</b><span>Diğer</span></div><div><b class="num">${fmtI(t.inst)}</b><span>Gelecek taksit</span></div></div></div>
-  <section><h2>Borç listesi<button data-act="editDebt">+ Borç ekle</button></h2><div class="card">${cardRows+dRows||empty('Borç yok','Kredi, altın borcu, şahsi borç ekleyebilirsin. Kartlar otomatik gelir.')}</div></section>
+  <section><h2>Borç listesi<button data-act="editDebt">+ Borç ekle</button></h2><div class="card">${cardRows+dRows+gRows||empty('Borç yok','Kredi, altın borcu, şahsi borç ekleyebilirsin. Kartlar otomatik gelir.')}</div></section>
   ${true?`<section><h2>Altın fiyatları (satış)<button data-act="goldLive">Güncelle</button></h2><div class="card"><div class="grid3" style="grid-template-columns:repeat(4,minmax(0,1fr))">${GU.map(([k,l])=>`<div><span class="muted" style="font-size:11px;display:block">${l[0].toUpperCase()+l.slice(1)}</span><b class="num" style="font-size:14px">${gp(k)?fmtI(gp(k)):'—'}</b></div>`).join('')}</div>
    <div class="row" style="border:0;padding:10px 0 0"><div class="mid"><div class="s">${gd.updated?(gd.live?'Canlı':'Elle girildi')+' · '+new Date(gd.updated).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Fiyat girilmedi'}</div></div><button class="btn sm" data-act="goldPrice">Elle gir</button></div></div></section>`:''}
   ${S.debtPay.length?`<section><h2>Son borç ödemeleri</h2><div class="card">${S.debtPay.slice().reverse().slice(0,6).map(p=>{const d=find(S.debts,p.debt);return `<div class="row"><div class="mid"><div class="t">${esc(d?d.name:'(silinmiş)')}</div><div class="s">${dshort(pd(p.date))}${p.gold?' · '+GU.filter(([k])=>p.gold[k]).map(([k,l])=>pc(p.gold[k])+' '+l).join(' + '):''}</div></div><div class="amt num good">−${fmtI(p.amt)}</div></div>`}).join('')}</div></section>`:''}`}
@@ -572,7 +587,7 @@ function editDebt(d){const x=d&&d.id?find(S.debts,d.id):null;
 A.editDebt=editDebt;
 
 /* ============ daha fazla ============ */
-function vMore(){const m=[['income','income','Gelir ve transfer','Maaş, havale, para transferleri'],['fixed','fixed','Sabit giderler','Kira, fatura, abonelik'],['car','car','Araba','Yakıt, bakım, sigorta, kart bağlantısı'],['scen','scen','Borçtan çıkış','Senaryoları dene'],['acc','wallet','Hesaplar','Nakit nereye gidiyor'],['set','gear','Ayarlar','Yedekle, geri yükle']];
+function vMore(){const m=[['income','income','Gelir ve transfer','Maaş, havale, para transferleri'],['fixed','fixed','Sabit giderler','Kira, fatura, abonelik'],['car','car','Araba','Yakıt, bakım, sigorta, kart bağlantısı'],['gun','wallet','Altın / para günü','Aylık ödeme ve alacak takibi'],['scen','scen','Borçtan çıkış','Senaryoları dene'],['acc','wallet','Hesaplar','Nakit nereye gidiyor'],['set','gear','Ayarlar','Yedekle, geri yükle']];
   return `<div class="menu">${m.map(([v,i,t,s])=>`<button data-act="go" data-v="${v}">${ico(i)}<b>${t}</b><span>${s}</span></button>`).join('')}</div>`}
 
 /* ============ gelir ve transfer ============ */
@@ -667,6 +682,45 @@ function editAcc(d){const x=d&&d.id?find(S.accounts,d.id):null;
    save(){const n=V('h_name').trim();if(!n){toast('Ad gir');return false}const o={type:V('h_type'),name:n,opening:N('h_open')};if(x)Object.assign(x,o);else S.accounts.push(Object.assign({id:uid()},o));save()},
    del:x?()=>confirmSheet('Hesabı sil',esc(x.name)+' silinsin mi? Bu hesaptaki harcama kayıtları da silinir.',()=>{S.tx=S.tx.filter(t=>t.src!=='acc:'+x.id);S.incomes=S.incomes.filter(i=>i.acc!==x.id);S.transfers=S.transfers.filter(t=>t.from!==x.id);S.accounts.splice(S.accounts.indexOf(x),1);save()}):null})}
 
+/* ============ altın / para günü ============ */
+function vGun(){
+  if(!S.gun.length)return `<div class="card">${empty('Gün ekle','Altın günü veya para günündeki aylık ödemelerini, sıranı ve alacağını buradan takip edersin.',`<div class="btns"><button class="btn pri" data-act="gunEdit">Gün ekle</button></div>`)}</div>`;
+  const tl=sum(S.gun.filter(g=>gunLeft(g)>0),gunC),rec=sum(S.gun.filter(g=>!(g.recv&&g.recv.done)),gunPot);
+  return `<div class="grid3"><div class="kpi"><span>Aylık ödeme</span><b class="num">${fmtI(tl)}</b></div><div class="kpi"><span>Alacağın</span><b class="num good">${fmtI(rec)}</b></div><div class="kpi"><span>Borç gibi kalan</span><b class="num ${sum(S.gun,gunDebtTL)>0?'bad':''}">${fmtI(sum(S.gun,gunDebtTL))}</b></div></div>
+  ${S.gun.map(g=>{const left=gunLeft(g),done=g.n-left,nx=gunNext(g),got=g.recv&&g.recv.done,ty=gunY(g,g.turn-1);
+   const ms=Array.from({length:g.n},(_,k)=>{const y=gunY(g,k);return `<button class="gm ${gunPaid(g,k)?'p':''} ${k===g.turn-1?'t':''}" data-act="gunMonth" data-id="${g.id}" data-k="${k}"><b>${MS[y%12]}</b><span>${String(Math.floor(y/12)).slice(2)}</span>${k===g.turn-1?'<i>SIRA</i>':''}</button>`}).join('');
+   return `<section><div class="card"><div class="row" style="border:0;padding-top:0"><div class="mid"><div class="t" style="font-size:17px">${esc(g.name)}</div><div class="s">${g.kind==='gold'?'Altın günü':'Para günü'} · her ay ${gunDesc(g)}${g.kind==='gold'?' ('+fmtI(gunC(g))+')':''} · ayın ${gunDay(g)}. günü</div></div><button class="ib" style="width:34px;height:34px;box-shadow:none" data-act="gunEdit" data-id="${g.id}" aria-label="Düzenle">${ico('gear')}</button></div>
+    ${barPct(done/g.n,'good')}<div class="s muted" style="margin-top:4px">${done}/${g.n} ay ödendi · ${left} ay kaldı</div>
+    <div class="row"><div class="mid"><div class="t">${got?'Alacağını aldın ✓':'Alacağın · '+MONTHS[ty%12]+' '+Math.floor(ty/12)}</div><div class="s">${g.kind==='gold'?gunDesc({kind:'gold',unit:g.unit,qty:g.qty*g.n})+' · ':''}şu an ${fmtI(gunPot(g))}${got?' · '+dshort(pd(g.recv.date)):''}</div></div>${got?'':`<button class="btn sm" data-act="gunRecvGo" data-id="${g.id}">Aldım</button>`}</div>
+    ${got&&left>0?`<div class="prev warn">Alacağını aldığın için kalan <b>${left} ay</b> (${fmtI(gunDebtTL(g))}) artık borç sayılır.</div>`:''}
+    <div class="gms">${ms}</div>
+    ${nx>=0?`<div class="btns"><button class="btn pri" data-act="gunPayGo" data-id="${g.id}" data-k="${nx}">${MS[gunY(g,nx)%12]} ödemesini yap · ${fmtI(gunC(g))}</button></div>`:''}</div></section>`}).join('')}
+  <div class="btns"><button class="btn" data-act="gunEdit">+ Gün ekle</button></div>
+  <div class="note">Altın günlerinde ödeme tutarı güncel altın satış fiyatından hesaplanır. Fiyatı Borçlar sayfasından güncelleyebilirsin.</div>`}
+A.gunPayGo=d=>gunPay(d.id,+d.k);A.gunRecvGo=d=>gunRecv(d.id);
+A.gunMonth=d=>{const g=find(S.gun,d.id),k=+d.k;
+  if(gunPaid(g,k))return confirmSheet('Ödemeyi geri al',`${MONTHS[gunY(g,k)%12]} ayı ödemesi geri alınsın mı? Bağlı harcama kaydı da silinir.`,()=>{const v=g.paid[k];if(v&&v!==true)S.tx=S.tx.filter(t=>t.id!==v);delete g.paid[k];save()});
+  gunPay(d.id,k)};
+function srcSel(id,none){return fld(id,'Hangi kaynaktan?','',{t:'select',opts:[['',none],...srcOpts()]})}
+function gunPay(id,k){const g=find(S.gun,id);
+  openSheet({title:`${g.name} · ${MONTHS[gunY(g,k)%12]} ödemesi`,body:`${fld('gp_amt','Ödenen tutar (₺)',nv(+gunC(g).toFixed(2)),{t:'num',cls:'amtin'})}<div class="note" style="margin-top:-6px">${g.kind==='gold'?gunDesc(g)+' karşılığı, güncel satış fiyatıyla. Altını fiilen verdiysen ve hesaptan para çıkmadıysa kaynağı "Kaydetme" bırak.':'Aylık para günü ödemesi.'}</div>${srcSel('gp_src','Harcama kaydı oluşturma')}${fld('gp_date','Tarih',today(),{t:'date'})}`,
+   save(){const a=N('gp_amt');if(!(a>0)){toast('Tutarı gir');return false}g.paid=g.paid||{};
+     if(V('gp_src')){const t={id:uid(),amt:a,cat:'Altın günü',src:V('gp_src'),date:V('gp_date')||today(),note:`${g.name} ${k+1}/${g.n}`,inst:1,rec:'gun:'+g.id};S.tx.push(t);g.paid[k]=t.id}else g.paid[k]=true;save();toast('Ödeme işlendi')}})}
+function gunRecv(id){const g=find(S.gun,id),ty=gunY(g,g.turn-1);
+  openSheet({title:g.name+' alacağı',body:`${fld('gr_amt','Aldığın tutar (₺)',nv(+gunPot(g).toFixed(2)),{t:'num',cls:'amtin'})}<div class="note" style="margin-top:-6px">${g.kind==='gold'?'Altın olarak aldıysan TL karşılığını yaz ve hesabı boş bırak. Bozdurduysan para giren hesabı seç.':''}</div>${S.accounts.length?fld('gr_acc','Hangi hesaba girdi?','',{t:'select',opts:[['','Hesaba işleme'],...S.accounts.map(a=>[a.id,a.name])]}):''}${fld('gr_date','Tarih',today(),{t:'date'})}`,
+   save(){const a=N('gr_amt');if(!(a>0)){toast('Tutarı gir');return false}g.recv={done:true,date:V('gr_date')||today(),amt:a};if(V('gr_acc'))S.incomes.push({id:uid(),amt:a,note:g.name+' alacağı',acc:V('gr_acc'),date:g.recv.date});save();toast('Alacak işlendi. Kalan ödemeler artık borç sayılıyor')}})}
+A.gunEdit=d=>{const g=d&&d.id?find(S.gun,d.id):null;
+  openSheet({title:g?'Günü düzenle':'Gün ekle',body:`${fld('g_name','Gün adı',g?g.name:'',{ph:'örn. Ayşe teyze altın günü'})}${fld('g_kind','Tür',g?g.kind:'gold',{t:'chips',opts:[['gold','Altın günü'],['cash','Para günü']]})}
+   <div id="g_goldbox">${fld('g_unit','Her ay verilen altın',g?g.unit:'ceyrek',{t:'chips',opts:GU.map(([k,l])=>[k,l])})}${fld('g_qty','Adet / gram',g?nv(g.qty):'1',{t:'num'})}</div><div id="g_cashbox">${fld('g_amt','Aylık tutar (₺)',g?nv(g.amt):'',{t:'num'})}</div>
+   ${fld('g_first','İlk ödeme tarihi (başladığı ay ve gün)',g?g.first:today(),{t:'date'})}<div class="f2">${fld('g_n','Toplam ay (kişi sayısı)',g?g.n:'',{t:'num',ph:'örn. 10'})}${fld('g_turn','Sıra kaçıncı ayda sende',g?g.turn:'',{t:'num',ph:'1-n'})}</div><div class="prev" id="g_prev"></div>`,
+   hook(){const gold=V('g_kind')==='gold';showIf('g_unit',gold);showIf('g_qty',gold);$('#g_cashbox').hidden=gold;
+     const n=Math.round(N('g_n')),t=Math.round(N('g_turn')),f=V('g_first');const pv=$('#g_prev');
+     if(n>0&&t>=1&&t<=n&&f){const y=ymOf(pd(f))+t-1;const c=gold?N('g_qty')*gp(V('g_unit')||'gram'):N('g_amt');pv.innerHTML=`Başlangıç <b>${ymLabel(ymOf(pd(f)))}</b> · son ödeme <b>${ymLabel(ymOf(pd(f))+n-1)}</b><br>Sıran: <b>${ymLabel(y)}</b> · Alacağın: <b>${gold?pc(N('g_qty')*n)+' '+(GU.find(u=>u[0]===V('g_unit'))||GU[0])[1]+' ('+fmtI(c*n)+')':fmtI(c*n)}</b>`}else pv.textContent='Toplam ay ve sıranı girince başlangıç, bitiş ve alacağın burada görünür.'},
+   save(){const n=Math.round(N('g_n')),t=Math.round(N('g_turn')),gold=V('g_kind')==='gold',nm=V('g_name').trim();
+     if(!nm||!(n>=2)||!(t>=1&&t<=n)||!V('g_first')||!(gold?N('g_qty')>0:N('g_amt')>0)){toast('Ad, tutar, ay sayısı ve sıra gerekli');return false}
+     const o={name:nm,kind:V('g_kind'),first:V('g_first'),n,turn:t,unit:V('g_unit')||'ceyrek',qty:N('g_qty'),amt:N('g_amt')};
+     if(g)Object.assign(g,o);else S.gun.push(Object.assign({id:uid(),paid:{},recv:null},o));save()},
+   del:g?()=>confirmSheet('Günü sil',esc(g.name)+' silinsin mi? Bağlı harcama kayıtları kalır.',()=>{S.gun.splice(S.gun.indexOf(g),1);save()}):null})};
 /* ============ senaryo ============ */
 const sc={extra:0,lump:0,strat:'avalanche'};
 function simDebts(){const o=[];S.cards.forEach(c=>{const i=cardInfo(c);if(i.currentDebt>1)o.push({n:c.name,bal:i.currentDebt,rate:i.rate,kind:'card',pct:i.minRate/100})});
@@ -704,7 +758,7 @@ function vScen(){
    <svg class="chart" viewBox="0 0 ${W} ${H+18}" style="margin-top:12px" role="img" aria-label="Borç azalış grafiği"><path d="${pth(base.hist)}" stroke="var(--muted)" stroke-width="2" stroke-dasharray="4 4"/><path d="${pth(best.hist)}" stroke="var(--accent)" stroke-width="2.5"/><text x="0" y="${H+14}">Bugün</text><text x="${W}" y="${H+14}" text-anchor="end">${mLab(L-1)}</text></svg>
    <div class="legend"><span><i style="background:var(--muted)"></i>Sadece asgari / taksit</span><span><i style="background:var(--accent)"></i>Bu plan</span></div></div></section>
   <section><h2>Yöntem karşılaştırması</h2><div class="card"><div class="row"><div class="mid"><div class="t">Çığ (faiz odaklı)</div><div class="s">${mLab(a.months)} · faiz ${fmtI(a.interest)}</div></div></div><div class="row"><div class="mid"><div class="t">Kartopu (küçük borç önce)</div><div class="s">${mLab(s.months)} · faiz ${fmtI(s.interest)}</div></div></div><div class="note">Çığ genellikle daha az faiz öder. Kartopu küçük borçları hızlı kapattığı için motivasyon sağlar.</div></div></section>
-  <section><h2>Tahmini aylık boş para</h2><div class="card"><div class="row"><div class="mid"><div class="s">Gelir</div></div><div class="amt num">${fmtI(fc.inc)}</div></div><div class="row"><div class="mid"><div class="s">Sabit giderler</div></div><div class="amt num">−${fmtI(fc.fixed)}</div></div><div class="row"><div class="mid"><div class="s">Gelecek ay taksitleri</div></div><div class="amt num">−${fmtI(fc.ins)}</div></div><div class="row"><div class="mid"><div class="s">Kredi / borç taksitleri</div></div><div class="amt num">−${fmtI(fc.debtM)}</div></div><div class="row"><div class="mid"><div class="s">Ortalama değişken harcama (3 ay)</div></div><div class="amt num">−${fmtI(fc.vari)}</div></div><div class="row"><div class="mid"><div class="t">Boş para</div></div><div class="amt num ${fc.free<0?'bad':'good'}">${fmtI(fc.free)}</div></div></div></section>
+  <section><h2>Tahmini aylık boş para</h2><div class="card"><div class="row"><div class="mid"><div class="s">Gelir</div></div><div class="amt num">${fmtI(fc.inc)}</div></div><div class="row"><div class="mid"><div class="s">Sabit giderler</div></div><div class="amt num">−${fmtI(fc.fixed)}</div></div><div class="row"><div class="mid"><div class="s">Gelecek ay taksitleri</div></div><div class="amt num">−${fmtI(fc.ins)}</div></div><div class="row"><div class="mid"><div class="s">Kredi, borç ve altın günü ödemeleri</div></div><div class="amt num">−${fmtI(fc.debtM)}</div></div><div class="row"><div class="mid"><div class="s">Ortalama değişken harcama (3 ay)</div></div><div class="amt num">−${fmtI(fc.vari)}</div></div><div class="row"><div class="mid"><div class="t">Boş para</div></div><div class="amt num ${fc.free<0?'bad':'good'}">${fmtI(fc.free)}</div></div></div></section>
   <div class="note">Hesap; kart borçlarında asgari ödeme ve aylık faiz, diğer borçlarda girdiğin aylık ödeme üzerinden yapılır. Kartlarda gelecek taksitler zaten ödeme planında olduğu için dahil edilmez. Sonuçlar tahmindir.</div>`}
 A.setX=d=>{sc.extra=+d.v;sc.lump=N('s_lump');sc.strat=V('s_strat');render()};
 A.runSim=()=>{sc.extra=N('s_extra');sc.lump=N('s_lump');sc.strat=V('s_strat');render()};
@@ -749,6 +803,7 @@ function demoData(){const D=emptyData(),dt=n=>addDays(n),id=uid;
   D.recurring.forEach(r=>{if(r.day<nd.getDate()){const t={id:id(),amt:r.amt,cat:r.kind==='Abonelik'?'Eğlence':r.kind==='Kira'?'Ev':'Fatura',src:r.src,date:iso(dateAt(cm0,r.day)),note:r.name,inst:1,rec:r.id};D.tx.push(t);D.recPaid[r.id+'|'+cm0]=t.id}});
   D.incomes=D.incomes.filter(i=>!i.rec);D.incomeRec.forEach(r=>{[2,1].forEach(k=>D.incomes.push({id:id(),amt:r.amt,note:r.name,acc:r.acc,date:iso(dateAt(cm0-k,r.day)),rec:r.id}));if(r.day<=nd.getDate()){const i={id:id(),amt:r.amt,note:r.name,acc:r.acc,date:iso(dateAt(cm0,r.day)),rec:r.id};D.incomes.push(i);D.incPaid[r.id+'|'+cm0]=i.id}});
   D.debts.forEach(d=>{if(d.monthly>0&&d.day<nd.getDate())D.debtPay.push({id:id(),debt:d.id,amt:d.monthly,from:a2.id,date:iso(dateAt(cm0,d.day))})});
+  {const f=new Date();f.setMonth(f.getMonth()-3);D.gun=[{id:id(),name:'Mahalle altın günü',kind:'gold',first:iso(f),n:10,turn:6,unit:'ceyrek',qty:1,amt:0,paid:{0:true,1:true,2:true},recv:null}]}
   D.cfg.gold={gram:4500,ceyrek:7300,yarim:14500,tam:29000,updated:Date.now(),live:false};D.transfers=[{id:id(),amt:3000,from:a2.id,to:a1.id,toText:'',note:'Nakit çekim',date:dt(-6)},{id:id(),amt:2000,from:a2.id,to:'',toText:'Anneme',note:'',date:dt(-11)}];return D}
 
 /* ============ başlat ============ */
