@@ -191,7 +191,7 @@ const ICO={
 const ico=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[n]}</svg>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1';
+const KEY='cuzdanim_v1',VER=6;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -713,6 +713,7 @@ A.runSim=()=>{sc.extra=N('s_extra');sc.lump=N('s_lump');sc.strat=V('s_strat');re
 function vSet(){return `<div class="card"><div class="row" style="border:0"><div class="mid"><div class="t">Yedek al</div><div class="s">${S.meta&&S.meta.lastBackup?'Son yedek: '+dshort(pd(S.meta.lastBackup)):'Henüz yedek alınmadı'} · Dosyalar / iCloud'a kaydet</div></div><button class="btn sm" data-act="exp">Yedekle</button></div><div class="row"><div class="mid"><div class="t">Yedekten geri yükle</div><div class="s">Yedek dosyasını seç veya metni yapıştır</div></div><button class="btn sm" data-act="imp">Geri yükle</button></div></div>
  <section><h2>Tema</h2><div class="chips"><button class="chip" data-act="theme" data-v="">Sistem</button><button class="chip" data-act="theme" data-v="light">Açık</button><button class="chip" data-act="theme" data-v="dark">Koyu</button></div></section>
  <section><h2>Veri</h2><div class="card"><div class="row" style="border:0"><div class="mid"><div class="t">Örnek veri yükle</div><div class="s">Uygulamayı denemek için. Mevcut verinin yerine geçer.</div></div><button class="btn sm" data-act="demo">Yükle</button></div><div class="row"><div class="mid"><div class="t bad">Her şeyi sil</div><div class="s">Bu cihazdaki tüm kayıtlar silinir</div></div><button class="btn sm danger" data-act="wipe">Sil</button></div></div></section>
+ <section><h2>Uygulama</h2><div class="card"><div class="row" style="border:0"><div class="mid"><div class="t">Sürüm ${VER}</div><div class="s">Yeni özellik görmüyorsan güncellemeyi zorla</div></div><button class="btn sm" data-act="upd">Güncelle</button></div></div></section>
  <div class="note">Verilerin yalnızca bu telefonda durur, hiçbir yere gönderilmez. Uygulama her kayıtta verini iki ayrı yerde saklar, ama telefon sıfırlanır veya uygulama silinirse ikisi de gider. Haftada bir yedek al; uygulama 7 günde bir hatırlatır.</div>`}
 A.exp=()=>openSheet({title:'Yedek al',body:`<p class="muted" style="margin-top:0">Yedeği <b>Dosyalar</b> uygulamasına veya <b>iCloud Drive</b>'a kaydet. Açılan menüden "Dosyalara Kaydet"i seç.</p><div class="btns" style="margin-top:0"><button class="btn pri" data-act="shareBk">Dosyaya kaydet / paylaş</button></div><div class="btns"><button class="btn" data-act="copyBk">Metni kopyala (Notlar'a yapıştır)</button></div><textarea id="bk" readonly style="margin-top:12px">${esc(JSON.stringify(S))}</textarea>`,save:null});
 A.shareBk=async()=>{const f=new File([JSON.stringify(S)],'cuzdanim-yedek-'+today()+'.json',{type:'application/json'});
@@ -724,6 +725,7 @@ A.imp=()=>openSheet({title:'Geri yükle',body:`<label class="f"><span>Yedek dosy
 document.addEventListener('change',e=>{if(e.target.id==='rf'){const f=e.target.files[0];if(f)f.text().then(t=>{const r=$('#rs');if(r)r.value=t;toast('Dosya okundu, Geri yükle\'ye bas')})}});
 A.theme=d=>{if(d.v)document.documentElement.dataset.theme=d.v;else delete document.documentElement.dataset.theme;try{localStorage.setItem(KEY+'_theme',d.v)}catch(e){}};
 try{const th=localStorage.getItem(KEY+'_theme');if(th)document.documentElement.dataset.theme=th}catch(e){}
+A.upd=async()=>{toast('Güncelleniyor…');try{if('serviceWorker'in navigator){const rs=await navigator.serviceWorker.getRegistrations();for(const r of rs)await r.unregister()}if(window.caches){for(const k of await caches.keys())await caches.delete(k)}}catch(e){}setTimeout(()=>location.reload(),400)};
 A.wipe=()=>confirmSheet('Her şeyi sil','Tüm kartlar, harcamalar ve borçlar silinecek. Bu geri alınamaz. Yedek aldın mı?',()=>{S=emptyData();ui.view='home';save()});
 A.demo=()=>{S=demoData();S.meta={demo:true};ui.view='home';save();toast('Örnek veri yüklendi')};
 A.startOwn=()=>{S=emptyData();ui.view='home';save();toast('Temizlendi. Önce bir kart veya hesap ekle')};
@@ -754,7 +756,7 @@ const _render=render;
 render=function(){if(ui.view==='cardDetail'){const y=window.scrollY;$('#app').innerHTML=vCardDetail();$('#nav').innerHTML=[['home','Özet','home'],['spend','Harcama','list'],['','','plus'],['cards','Kartlar','card'],['debts','Borçlar','debt']].map(([k,l,i])=>k===''?`<button class="fab" data-act="quick" aria-label="Harcama ekle">${ico('plus')}</button>`:`<button data-act="go" data-v="${k}" class="${k==='cards'?'on':''}">${ico(i)}${l}</button>`).join('');window.scrollTo(0,y)}else _render()};
 render();
 if(location.protocol.startsWith('http')&&S.debts.some(d=>d.type==='gold')&&(!(S.cfg.gold&&S.cfg.gold.updated)||Date.now()-S.cfg.gold.updated>30*60*1000))goldFetch(true);
-if('serviceWorker' in navigator&&location.protocol.startsWith('http')){try{navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}}
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){try{const had=!!navigator.serviceWorker.controller;let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!rl){rl=true;location.reload()}});navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{})}catch(e){}}
 </script>
 
 </body>
