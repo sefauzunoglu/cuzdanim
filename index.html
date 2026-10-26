@@ -191,7 +191,7 @@ const ICO={
 const ico=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[n]}</svg>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=6;
+const KEY='cuzdanim_v1',VER=7;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -544,7 +544,7 @@ function vDebts(){
   const dRows=S.debts.map(d=>{const b=debtBal(d);return `<button class="row" data-act="debtOpen" data-id="${d.id}"><span class="dot" style="background:${d.type==='gold'?'var(--c2)':d.type==='loan'?'var(--c4)':'var(--c5)'}"></span><div class="mid"><div class="t">${esc(d.name)}</div><div class="s">${debtNote(d)}${d.type==='gold'?` · ${goldDesc(d)}`:''}${d.monthly?` · aylık ${fmtI(d.monthly)}`:''}${d.type==='loan'&&d.monthly>0?` · ~${Math.ceil(d.remaining/d.monthly)} ay`:''}</div></div><div class="amt num">${fmtI(b)}</div></button>`}).join('');
   return `<div class="hero"><div class="lbl">Toplam borç</div><div class="big num">${fmtI(t.total)}</div><div class="sub"><div><b class="num">${fmtI(t.cardDebt)}</b><span>Kart</span></div><div><b class="num">${fmtI(t.other)}</b><span>Diğer</span></div><div><b class="num">${fmtI(t.inst)}</b><span>Gelecek taksit</span></div></div></div>
   <section><h2>Borç listesi<button data-act="editDebt">+ Borç ekle</button></h2><div class="card">${cardRows+dRows||empty('Borç yok','Kredi, altın borcu, şahsi borç ekleyebilirsin. Kartlar otomatik gelir.')}</div></section>
-  ${S.debts.some(d=>d.type==='gold')?`<section><h2>Altın fiyatları (satış)<button data-act="goldLive">Güncelle</button></h2><div class="card"><div class="grid3" style="grid-template-columns:repeat(4,minmax(0,1fr))">${GU.map(([k,l])=>`<div><span class="muted" style="font-size:11px;display:block">${l[0].toUpperCase()+l.slice(1)}</span><b class="num" style="font-size:14px">${gp(k)?fmtI(gp(k)):'—'}</b></div>`).join('')}</div>
+  ${true?`<section><h2>Altın fiyatları (satış)<button data-act="goldLive">Güncelle</button></h2><div class="card"><div class="grid3" style="grid-template-columns:repeat(4,minmax(0,1fr))">${GU.map(([k,l])=>`<div><span class="muted" style="font-size:11px;display:block">${l[0].toUpperCase()+l.slice(1)}</span><b class="num" style="font-size:14px">${gp(k)?fmtI(gp(k)):'—'}</b></div>`).join('')}</div>
    <div class="row" style="border:0;padding:10px 0 0"><div class="mid"><div class="s">${gd.updated?(gd.live?'Canlı':'Elle girildi')+' · '+new Date(gd.updated).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Fiyat girilmedi'}</div></div><button class="btn sm" data-act="goldPrice">Elle gir</button></div></div></section>`:''}
   ${S.debtPay.length?`<section><h2>Son borç ödemeleri</h2><div class="card">${S.debtPay.slice().reverse().slice(0,6).map(p=>{const d=find(S.debts,p.debt);return `<div class="row"><div class="mid"><div class="t">${esc(d?d.name:'(silinmiş)')}</div><div class="s">${dshort(pd(p.date))}${p.gold?' · '+GU.filter(([k])=>p.gold[k]).map(([k,l])=>pc(p.gold[k])+' '+l).join(' + '):''}</div></div><div class="amt num good">−${fmtI(p.amt)}</div></div>`}).join('')}</div></section>`:''}`}
 A.goldLive=()=>{toast('Fiyatlar alınıyor…');goldFetch(false)};
