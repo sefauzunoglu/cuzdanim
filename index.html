@@ -302,7 +302,7 @@ A.sheetClose=sheetClose;
 A.sheetSave=()=>{if(saveFn){const r=saveFn();if(r!==false)sheetClose()}};
 A.sheetDel=()=>{if(delFn){const f=delFn;sheetClose();f()}};
 A.go=d=>go(d.v);
-A.back=()=>go(ui.view==='cardDetail'?'cards':'more');
+A.back=()=>go(ui.view==='cardDetail'?'cards':ui.view==='more'?'home':'more');
 A.more=()=>go('more');
 A.quick=()=>openExpense();
 
@@ -313,7 +313,7 @@ function render(){
   const T=titles[v]||['',''];
   const views={home:vHome,spend:vSpend,cards:vCards,debts:vDebts,more:vMore,income:vIncome,fixed:vFixed,car:vCar,scen:vScen,acc:vAcc,set:vSet};
   const main=MAIN.includes(v);
-  $('#app').innerHTML=`<header class="top">${main||v==='more'?'':`<button class="ib" data-act="back" aria-label="Geri">${ico('back')}</button>`}
+  $('#app').innerHTML=`<header class="top">${main?'':`<button class="ib" data-act="back" aria-label="Geri">${ico('back')}</button>`}
     <h1>${T[0]}${T[1]?`<small>${T[1]}</small>`:''}</h1>${main?`<button class="ib" data-act="more" aria-label="Daha fazla">${ico('grid')}</button>`:''}</header>${views[v]()}`;
   $('#nav').innerHTML=[['home','Özet','home'],['spend','Harcama','list'],['','', 'plus'],['cards','Kartlar','card'],['debts','Borçlar','debt']].map(([k,l,i])=>
     k===''?`<button class="fab" data-act="quick" aria-label="Harcama ekle">${ico('plus')}</button>`:
