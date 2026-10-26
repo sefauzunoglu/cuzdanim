@@ -44,7 +44,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   min-height:100vh;overscroll-behavior-y:none}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
-button,input,select{font:inherit;color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{font-size:16px}
 button{cursor:pointer;border:0;background:none}
 .num{font-variant-numeric:tabular-nums}
 #app{max-width:640px;margin:0 auto;padding-bottom:120px}
@@ -143,7 +144,7 @@ h2 button{font-size:13px;color:var(--accent);text-transform:none;letter-spacing:
 .gm{background:var(--surface2);border-radius:11px;padding:7px 2px;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--muted);position:relative;border:1.5px solid transparent;min-height:50px}
 .gm b{font-size:13px;color:var(--ink)}.gm.p{background:var(--good-soft);color:var(--good)}.gm.p b{color:var(--good)}.gm.p::after{content:"✓";position:absolute;top:2px;right:5px;font-size:10px}
 .gm.t{border-color:var(--accent)}.gm i{font-style:normal;font-size:9px;font-weight:800;color:var(--accent);letter-spacing:.04em}
-textarea{width:100%;min-height:120px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);padding:10px;font-size:12px}
+textarea{width:100%;min-height:120px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);padding:10px;font-size:16px}
 @media (prefers-reduced-motion:no-preference){#sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(40px);opacity:.6}}}
 </style>
 </head>
@@ -195,7 +196,7 @@ const ICO={
 const ico=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[n]}</svg>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=9;
+const KEY='cuzdanim_v1',VER=10;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
