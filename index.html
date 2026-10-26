@@ -196,7 +196,7 @@ const ICO={
 const ico=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[n]}</svg>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=11;
+const KEY='cuzdanim_v1',VER=12;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -643,7 +643,7 @@ A.payRec=d=>payRec(d.id);
 A.undoRec=d=>{const k=Object.keys(S.recPaid).find(k=>k.startsWith(d.id+'|')&&k.endsWith('|'+ymOf(new Date())));if(!k)return;const tid=S.recPaid[k];S.tx=S.tx.filter(t=>t.id!==tid);delete S.recPaid[k];(S.recSkip=S.recSkip||{})[k]=1;save();toast('Ödeme geri alındı')};
 function editRec(d){const x=d&&d.id?find(S.recurring,d.id):null,kind=(d&&d.kind)||(x?x.kind:'Fatura');
   openSheet({title:x?'Sabit gideri düzenle':'Sabit gider ekle',body:`${fld('s_kind','Tür',kind,{t:'chips',opts:Object.keys(PRE).map(k=>[k,k])})}<div class="f" id="s_pre"><span>Hızlı seç</span><div class="chips" id="s_prech"></div></div>${fld('s_name','Ad',x?x.name:'')}
-   <div class="f2">${fld('s_amt','Aylık tutar (₺)',x?nv(x.amt):'',{t:'num'})}${fld('s_day','Ayın günü',x?x.day:'',{t:'num',ph:'1-31'})}</div>${fld('s_src','Nereden ödenir?',x?x.src:(srcOpts()[0]||[''])[0],{t:'select',opts:[['','Seçilmedi'],...srcOpts()]})}${fld('s_auto','Ödeme günü gelince',x&&x.auto?'1':'0',{t:'chips',opts:[['0','Elle onaylarım'],['1','Otomatik işle']]})}<div class="note" id="s_autonote" style="margin-top:-6px">Tutarı sabit olan giderlerde (kira, abonelik) otomatik işlemeyi seç. Tutarı her ay değişen faturalarda elle onaylamak daha doğru olur. Otomatik için ödeme kaynağı seçmelisin.</div>${x?fld('s_act','Durum',x.active===false?'0':'1',{t:'chips',opts:[['1','Aktif'],['0','Pasif']]}):''}`,
+   <div class="f2">${fld('s_amt','Aylık tutar (₺)',x?nv(x.amt):'',{t:'num'})}${fld('s_day','Ayın günü',x?x.day:'',{t:'num',ph:'1-31'})}</div>${fld('s_src','Nereden ödenir?',x?x.src:(srcOpts()[0]||[''])[0],{t:'select',opts:[['','Seçilmedi'],...srcOpts()]})}${fld('s_auto','Ödeme günü gelince',x&&x.auto?'1':'0',{t:'chips',opts:[['0','Elle onaylarım'],['1','Otomatik işle']]})}<div class="note" id="s_autonote" style="margin-top:-6px">Tutarı sabit olan giderlerde (kira, abonelik) otomatik işlemeyi seç. Tutarı her ay değişen faturalarda elle onaylamak daha doğru olur. Otomatik için ödeme kaynağı seçmelisin.</div>${x?fld('s_act','Durum',x.active===false?'0':'1',{t:'chips',opts:[['1','Aktif'],['0','İptal ettim (durdur)']]}):''}`,
    hook(){const k=V('s_kind'),c=$('#s_prech');if(c&&c.dataset.k!==k){c.dataset.k=k;c.innerHTML=(PRE[k]||[]).map(n=>`<button type="button" class="chip" data-act="preName" data-n="${esc(n)}">${esc(n)}</button>`).join('')}},
    save(){const a=N('s_amt'),dy=Math.round(N('s_day')),n=V('s_name').trim();if(!n||!(dy>=1&&dy<=31)){toast('Ad ve gün gerekli');return false}
     const auto=V('s_auto')==='1';if(auto&&!V('s_src')){toast('Otomatik işlemek için ödeme kaynağı seç');return false}
