@@ -192,12 +192,17 @@ const ico=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[n]}</svg>`;
 
 /* ============ veri ============ */
 const KEY='cuzdanim_v1';
-const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],cfg:{goldPrice:0}});
+const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
   return mem?Object.assign(emptyData(),JSON.parse(mem)):emptyData()}
 let S=load();
-function persist(){const j=JSON.stringify(S);mem=j;try{localStorage.setItem(KEY,j)}catch(e){}}
+try{if(!localStorage.getItem(KEY))setTimeout(idbRestore,0)}catch(e){}
+function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open('cuzdanim',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej()})}
+function idbPut(j){try{idbOpen().then(d=>{d.transaction('kv','readwrite').objectStore('kv').put(j,'data')}).catch(()=>{})}catch(e){}}
+function idbRestore(){try{idbOpen().then(d=>{const q=d.transaction('kv').objectStore('kv').get('data');q.onsuccess=()=>{if(q.result){try{S=Object.assign(emptyData(),JSON.parse(q.result));render();toast('Verin yedek depodan geri yüklendi')}catch(e){}}}}).catch(()=>{})}catch(e){}}
+function persist(){const j=JSON.stringify(S);mem=j;try{localStorage.setItem(KEY,j)}catch(e){}idbPut(j)}
+function markBackup(){S.meta=S.meta||{};S.meta.lastBackup=today();persist();render();toast('Yedek alındı')}
 function save(){persist();render()}
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 
@@ -330,7 +335,10 @@ function vHome(){
   const t=totals(),cm=ymOf(new Date()),inc=monthIncome(cm),exp=sum(monthParts(cm),p=>p.amt);
   const up=upcoming(14);
   const tips=advice();
-  return `<div class="hero"><div class="lbl">Toplam borç</div><div class="big num">${fmtI(t.total)}</div>
+  const mt=S.meta||{},ago=mt.lastBackup?Math.round((midnight(new Date())-pd(mt.lastBackup))/864e5):null;
+  const ban=mt.demo?`<div class="tip warn" style="margin-bottom:12px"><i class="sev"></i><div><b>Örnek veriyle geziyorsun</b><span>Buradaki kartlar ve rakamlar sana ait değil. Kendi verini girmek için örnekleri sil.</span><div class="btns" style="margin-top:8px"><button class="btn pri sm" data-act="startOwn">Örnekleri sil, kendi verime geç</button></div></div></div>`
+   :(S.tx.length>=3||S.cards.length)&&(ago===null||ago>=7)?`<div class="tip warn" style="margin-bottom:12px"><i class="sev"></i><div><b>Yedek zamanı</b><span>${ago===null?'Henüz yedek almadın.':ago+' gündür yedek almadın.'} Telefon verisi silinirse geri dönüş yok. Yedeği Dosyalar veya iCloud'a kaydet.</span><div class="btns" style="margin-top:8px"><button class="btn pri sm" data-act="exp">Şimdi yedekle</button></div></div></div>`:'';
+  return `${ban}<div class="hero"><div class="lbl">Toplam borç</div><div class="big num">${fmtI(t.total)}</div>
     <div class="sub"><div><b class="num">${fmtI(t.cardDebt)}</b><span>Kart borcu</span></div><div><b class="num">${fmtI(t.other)}</b><span>Kredi / altın / diğer</span></div><div><b class="num">${fmtI(t.inst)}</b><span>Kalan taksitler</span></div></div></div>
   <section><div class="grid3"><div class="kpi"><span>Nakit varlık</span><b class="num">${fmtI(t.cash)}</b></div><div class="kpi"><span>${MS[cm%12]} gelir</span><b class="num good">${fmtI(inc)}</b></div><div class="kpi"><span>${MS[cm%12]} gider</span><b class="num">${fmtI(exp)}</b></div></div></section>
   ${tips.length?`<section><h2>Öneriler</h2>${tips.slice(0,5).map(tipH).join('')}${tips.length>5?`<div class="note">${tips.length-5} öneri daha: <button data-act="allTips" style="color:var(--accent);font-weight:600">hepsini gör</button></div>`:''}</section>`:''}
@@ -660,18 +668,23 @@ A.setX=d=>{sc.extra=+d.v;sc.lump=N('s_lump');sc.strat=V('s_strat');render()};
 A.runSim=()=>{sc.extra=N('s_extra');sc.lump=N('s_lump');sc.strat=V('s_strat');render()};
 
 /* ============ ayarlar ============ */
-function vSet(){return `<div class="card"><div class="row" style="border:0"><div class="mid"><div class="t">Yedek al</div><div class="s">Tüm verini metin olarak kopyala veya dosya olarak indir</div></div><button class="btn sm" data-act="exp">Yedekle</button></div><div class="row"><div class="mid"><div class="t">Yedekten geri yükle</div><div class="s">Daha önce aldığın yedeği yapıştır</div></div><button class="btn sm" data-act="imp">Geri yükle</button></div></div>
+function vSet(){return `<div class="card"><div class="row" style="border:0"><div class="mid"><div class="t">Yedek al</div><div class="s">${S.meta&&S.meta.lastBackup?'Son yedek: '+dshort(pd(S.meta.lastBackup)):'Henüz yedek alınmadı'} · Dosyalar / iCloud'a kaydet</div></div><button class="btn sm" data-act="exp">Yedekle</button></div><div class="row"><div class="mid"><div class="t">Yedekten geri yükle</div><div class="s">Yedek dosyasını seç veya metni yapıştır</div></div><button class="btn sm" data-act="imp">Geri yükle</button></div></div>
  <section><h2>Tema</h2><div class="chips"><button class="chip" data-act="theme" data-v="">Sistem</button><button class="chip" data-act="theme" data-v="light">Açık</button><button class="chip" data-act="theme" data-v="dark">Koyu</button></div></section>
  <section><h2>Veri</h2><div class="card"><div class="row" style="border:0"><div class="mid"><div class="t">Örnek veri yükle</div><div class="s">Uygulamayı denemek için. Mevcut verinin yerine geçer.</div></div><button class="btn sm" data-act="demo">Yükle</button></div><div class="row"><div class="mid"><div class="t bad">Her şeyi sil</div><div class="s">Bu cihazdaki tüm kayıtlar silinir</div></div><button class="btn sm danger" data-act="wipe">Sil</button></div></div></section>
- <div class="note">Verilerin yalnızca bu telefonda, tarayıcı deposunda durur. Hiçbir yere gönderilmez. Telefonu değiştirmeden veya Safari verilerini silmeden önce yedek almayı unutma.</div>`}
-A.exp=()=>{const j=JSON.stringify(S);openSheet({title:'Yedek',body:`<p class="muted" style="margin-top:0">Aşağıdaki metni kopyalayıp Notlar uygulamasına yapıştır. Geri yüklerken aynı metni kullanırsın.</p><textarea id="bk" readonly>${esc(j)}</textarea><div class="btns"><button class="btn pri" data-act="copyBk">Kopyala</button><button class="btn" data-act="dlBk">Dosya olarak indir</button></div>`,save:null});};
-A.copyBk=()=>{const t=$('#bk');t.select();try{navigator.clipboard.writeText(t.value).then(()=>toast('Kopyalandı'),()=>{document.execCommand('copy');toast('Kopyalandı')})}catch(e){try{document.execCommand('copy');toast('Kopyalandı')}catch(_){}}};
-A.dlBk=()=>{try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='cuzdanim-yedek-'+today()+'.json';document.body.appendChild(a);a.click();a.remove()}catch(e){toast('İndirme desteklenmiyor, metni kopyala')}};
-A.imp=()=>openSheet({title:'Geri yükle',body:`<textarea id="rs" placeholder="Yedek metnini buraya yapıştır"></textarea><div class="note">Mevcut verinin yerine geçer.</div>`,saveLabel:'Geri yükle',save(){try{const o=JSON.parse($('#rs').value);if(!o||!Array.isArray(o.tx))throw 0;S=Object.assign(emptyData(),o);save();toast('Geri yüklendi')}catch(e){toast('Yedek metni geçersiz');return false}}});
+ <div class="note">Verilerin yalnızca bu telefonda durur, hiçbir yere gönderilmez. Uygulama her kayıtta verini iki ayrı yerde saklar, ama telefon sıfırlanır veya uygulama silinirse ikisi de gider. Haftada bir yedek al; uygulama 7 günde bir hatırlatır.</div>`}
+A.exp=()=>openSheet({title:'Yedek al',body:`<p class="muted" style="margin-top:0">Yedeği <b>Dosyalar</b> uygulamasına veya <b>iCloud Drive</b>'a kaydet. Açılan menüden "Dosyalara Kaydet"i seç.</p><div class="btns" style="margin-top:0"><button class="btn pri" data-act="shareBk">Dosyaya kaydet / paylaş</button></div><div class="btns"><button class="btn" data-act="copyBk">Metni kopyala (Notlar'a yapıştır)</button></div><textarea id="bk" readonly style="margin-top:12px">${esc(JSON.stringify(S))}</textarea>`,save:null});
+A.shareBk=async()=>{const f=new File([JSON.stringify(S)],'cuzdanim-yedek-'+today()+'.json',{type:'application/json'});
+  try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Cüzdanım yedek'});sheetClose();markBackup();return}}catch(e){if(e&&e.name==='AbortError')return}
+  A.dlBk()};
+A.copyBk=()=>{const t=$('#bk');t.select();const ok=()=>{sheetClose();markBackup()};try{navigator.clipboard.writeText(t.value).then(ok,()=>{document.execCommand('copy');ok()})}catch(e){try{document.execCommand('copy');ok()}catch(_){toast('Kopyalanamadı')}}};
+A.dlBk=()=>{try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='cuzdanim-yedek-'+today()+'.json';document.body.appendChild(a);a.click();a.remove();sheetClose();markBackup()}catch(e){toast('İndirme desteklenmiyor, metni kopyala')}};
+A.imp=()=>openSheet({title:'Geri yükle',body:`<label class="f"><span>Yedek dosyasını seç</span><input id="rf" type="file" accept=".json,application/json,text/plain"></label><div class="f"><span>veya yedek metnini yapıştır</span><textarea id="rs" placeholder="Yedek metni"></textarea></div><div class="note">Mevcut verinin yerine geçer.</div>`,saveLabel:'Geri yükle',save(){try{const o=JSON.parse($('#rs').value);if(!o||!Array.isArray(o.tx))throw 0;S=Object.assign(emptyData(),o);S.meta=S.meta||{};save();toast('Geri yüklendi')}catch(e){toast('Önce dosya seç veya metni yapıştır');return false}}});
+document.addEventListener('change',e=>{if(e.target.id==='rf'){const f=e.target.files[0];if(f)f.text().then(t=>{const r=$('#rs');if(r)r.value=t;toast('Dosya okundu, Geri yükle\'ye bas')})}});
 A.theme=d=>{if(d.v)document.documentElement.dataset.theme=d.v;else delete document.documentElement.dataset.theme;try{localStorage.setItem(KEY+'_theme',d.v)}catch(e){}};
 try{const th=localStorage.getItem(KEY+'_theme');if(th)document.documentElement.dataset.theme=th}catch(e){}
 A.wipe=()=>confirmSheet('Her şeyi sil','Tüm kartlar, harcamalar ve borçlar silinecek. Bu geri alınamaz. Yedek aldın mı?',()=>{S=emptyData();ui.view='home';save()});
-A.demo=()=>{S=demoData();ui.view='home';save();toast('Örnek veri yüklendi')};
+A.demo=()=>{S=demoData();S.meta={demo:true};ui.view='home';save();toast('Örnek veri yüklendi')};
+A.startOwn=()=>{S=emptyData();ui.view='home';save();toast('Temizlendi. Önce bir kart veya hesap ekle')};
 function demoData(){const D=emptyData(),dt=n=>addDays(n),id=uid;
   const a1={id:id(),name:'Cüzdan (nakit)',type:'cash',opening:2400},a2={id:id(),name:'Maaş hesabı',type:'bank',opening:21500};D.accounts=[a1,a2];
   const c1={id:id(),name:'Ana kart',limit:90000,cutoff:Math.min(28,Math.max(1,new Date().getDate()-6)||15),due:0,minRate:20,rate:4.25,openDebt:9800};c1.due=((c1.cutoff+9)%28)+1;
