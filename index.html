@@ -195,7 +195,7 @@ const ICO={
 const ico=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[n]}</svg>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=8;
+const KEY='cuzdanim_v1',VER=9;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -540,9 +540,9 @@ function editCard(d){const c=d&&d.id?find(S.cards,d.id):null;
   ${fld('c_mina','Asgari ödeme oranı',c&&c.minAuto===false?'0':'1',{t:'chips',opts:[['1','Otomatik (BDDK)'],['0','Elle gir']]})}${fld('c_min','Asgari oran (%)',c?c.minRate:20,{t:'num'})}
   ${fld('c_ratea','Aylık faiz',c&&c.rateAuto===false?'0':'1',{t:'chips',opts:[['1','Otomatik (TCMB azami)'],['0','Elle gir']]})}${fld('c_rate','Aylık faiz (%)',c?c.rate:4,{t:'num'})}
   <div class="note" id="c_info"></div>
-  ${fld('c_open','Kesilmiş son ekstre borcu (₺)',c?nv(c.openDebt):'',{t:'num',ph:'Bankanın gösterdiği ödenmemiş ekstre borcu'})}
-  ${fld('c_since','Takibe başlama tarihi',c?c.since:today(),{t:'date'})}
-  <div class="note">Bu tarihten <b>önceki</b> ekstrelerin ödenmiş olduğu varsayılır. Eski taksitli alışverişlerini kendi gerçek tarihleriyle girebilirsin; geçmiş taksitler borca eklenmez, kalan taksitler limite ve gelecek ekstrelere yansır.</div>
+  ${fld('c_open','Son ekstreden ödenmemiş kalan borç (₺)',c?nv(c.openDebt):'',{t:'num',ph:'Ödediysen 0'})}
+  ${fld('c_since','Bu uygulamayı bu karta ne zaman kullanmaya başladın?',c?c.since:today(),{t:'date'})}
+  <div class="note"><b>Ödenmemiş kalan borç:</b> bankada son kesilen ekstreden hâlâ ödemen gereken tutar (ekstre eksi ödediklerin). Tamamen ödediysen 0 yaz. Henüz kesilmemiş harcamaları buraya yazma, + ile ekle.<br><b>Başlama tarihi:</b> çoğu zaman bugün. Bu tarihten önceki ekstreler bitmiş sayılır, eski harcamaları girmen gerekmez. Eski taksitli alışverişleri gerçek tarihleriyle girebilirsin; geçmiş taksitler borca eklenmez, kalanlar eklenir.</div>
   `,
   hook(){showIf('c_min',V('c_mina')==='0');showIf('c_rate',V('c_ratea')==='0');const l=N('c_limit');$('#c_info').innerHTML=(V('c_mina')==='1'?`Asgari oran limitine göre <b>%${autoMinRate(l)}</b> (limit 100.000 ₺ ve altı %20, üstü %40). `:'')+(V('c_ratea')==='1'?`Aylık faiz dönem borcuna göre otomatik: 30 bin ₺ altı %3,25, 30-180 bin ₺ %3,75, üstü %4,25. Bunlar yasal azami oranlardır; bankan daha düşük uyguluyorsa Elle gir seç.`:'')},
   save(){const n=V('c_name').trim(),cut=Math.round(N('c_cut')),due=Math.round(N('c_due'));if(!n||!(cut>=1&&cut<=31)||!(due>=1&&due<=31)){toast('Ad, kesim ve son ödeme günü gerekli');return false}
