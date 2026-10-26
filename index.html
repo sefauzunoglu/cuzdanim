@@ -196,7 +196,7 @@ const ICO={
 const ico=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[n]}</svg>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=10;
+const KEY='cuzdanim_v1',VER=11;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -465,7 +465,7 @@ function openExpense(tx,preset={}){
      if(tx)Object.assign(tx,o);else S.tx.push(o);persist();
      const s=o.src;let m='Kaydedildi';if(s.startsWith('card:')){const c=find(S.cards,s.slice(5)),i=cardInfo(c);m=`${c.name}: güncel borç ${fmtI(i.currentDebt)}, kalan limit ${fmtI(i.avail)}`}
      render();toast(m)},
-   del:tx?()=>{const i=S.tx.indexOf(tx);S.tx.splice(i,1);Object.keys(S.recPaid).forEach(k=>{if(S.recPaid[k]===tx.id)delete S.recPaid[k]});save();toast('Silindi')}:null});
+   del:tx?()=>{const i=S.tx.indexOf(tx);S.tx.splice(i,1);Object.keys(S.recPaid).forEach(k=>{if(S.recPaid[k]===tx.id){delete S.recPaid[k];(S.recSkip=S.recSkip||{})[k]=1}});save();toast('Silindi')}:null});
 }
 A.fill=d=>{const r=find(S.tx,d.i);if(!r)return;setV('x_amt',nv(r.amt));setV('x_cat',r.cat);setV('x_src',r.src);setV('x_note',r.note||'');setV('x_inst',r.inst||1);if(hook)hook()};
 A.editTx=d=>{const t=find(S.tx,d.id);if(t)openExpense(t)};
@@ -627,20 +627,27 @@ function vFixed(){
   const paidSum=sum(rs.filter(r=>S.recPaid[r.id+'|'+cm]),r=>(find(S.tx,S.recPaid[r.id+'|'+cm])||{}).amt||r.amt);
   return `<div class="grid3"><div class="kpi"><span>Aylık toplam</span><b class="num">${fmtI(sum(rs,r=>r.amt))}</b></div><div class="kpi"><span>Bu ay ödenen</span><b class="num good">${fmtI(paidSum)}</b></div><div class="kpi"><span>Kalan</span><b class="num ${''}">${fmtI(sum(rs.filter(r=>!S.recPaid[r.id+'|'+cm]),r=>r.amt))}</b></div></div>
   <div class="btns"><button class="btn pri" data-act="editRec">+ Sabit gider ekle</button></div>
-  ${kinds.map(k=>{const l=S.recurring.filter(r=>r.kind===k);if(!l.length)return '';return `<section><h2>${k==='Kira'?'Kira':k==='Fatura'?'Faturalar':k==='Abonelik'?'Abonelikler':'Diğer'}<span class="num">${fmtI(sum(l.filter(r=>r.active!==false),r=>r.amt))}/ay</span></h2><div class="card">${l.map(r=>{const paid=S.recPaid[r.id+'|'+cm],dd=daysTo(dateAt(cm,r.day));return `<div class="row"><div class="mid"><div class="t" style="${r.active===false?'opacity:.5':''}">${esc(r.name)}</div><div class="s">Her ayın ${r.day}. günü${r.src?' · '+esc(srcName(r.src)):''}</div></div><div class="amt num">${fmt(r.amt)}<small>${r.active===false?'<span class="pill">Pasif</span>':paid?`<button class="pill good" data-act="undoRec" data-id="${r.id}">Ödendi ✓</button>`:`<button class="pill ${dd<0?'bad':dd<=3?'warn':'acc'}" data-act="payRec" data-id="${r.id}">${dd<0?'Gecikti · öde':'Öde'}</button>`}</small></div><button class="ib" style="width:34px;height:34px;box-shadow:none" data-act="editRec" data-id="${r.id}" aria-label="Düzenle">${ico('gear')}</button></div>`}).join('')}</div></section>`}).join('')||`<section><div class="card">${empty('Sabit gider yok','Kira, elektrik, internet, abonelik gibi her ay tekrar eden giderleri ekle. “Öde” dediğinde harcama olarak kartına veya hesabına işlenir.')}</div></section>`}
+  ${kinds.map(k=>{const l=S.recurring.filter(r=>r.kind===k);if(!l.length)return '';return `<section><h2>${k==='Kira'?'Kira':k==='Fatura'?'Faturalar':k==='Abonelik'?'Abonelikler':'Diğer'}<span class="num">${fmtI(sum(l.filter(r=>r.active!==false),r=>r.amt))}/ay</span></h2><div class="card">${l.map(r=>{const paid=S.recPaid[r.id+'|'+cm],dd=daysTo(dateAt(cm,r.day));return `<div class="row"><div class="mid"><div class="t" style="${r.active===false?'opacity:.5':''}">${esc(r.name)}</div><div class="s">Her ayın ${r.day}. günü${r.src?' · '+esc(srcName(r.src)):''}${r.auto?' · <b class="good">otomatik</b>':''}</div></div><div class="amt num">${fmt(r.amt)}<small>${r.active===false?'<span class="pill">Pasif</span>':paid?`<button class="pill good" data-act="undoRec" data-id="${r.id}">Ödendi ✓</button>`:`<button class="pill ${dd<0?'bad':dd<=3?'warn':'acc'}" data-act="payRec" data-id="${r.id}">${dd<0?'Gecikti · öde':'Öde'}</button>`}</small></div><button class="ib" style="width:34px;height:34px;box-shadow:none" data-act="editRec" data-id="${r.id}" aria-label="Düzenle">${ico('gear')}</button></div>`}).join('')}</div></section>`}).join('')||`<section><div class="card">${empty('Sabit gider yok','Kira, elektrik, internet, abonelik gibi her ay tekrar eden giderleri ekle. “Öde” dediğinde harcama olarak kartına veya hesabına işlenir.')}</div></section>`}
   <div class="note">Abonelikler kredi kartıyla ödeniyorsa “Öde” harcamayı o kartın ekstresine ekler.</div>`}
+function processAuto(){let n=0;const now=new Date(),cm=ymOf(now);S.recSkip=S.recSkip||{};
+  S.recurring.forEach(r=>{if(!r.auto||!r.src||r.active===false)return;
+    for(let m=(r.autoFrom==null?cm:r.autoFrom);m<=cm;m++){const k=r.id+'|'+m;if(S.recPaid[k]||S.recSkip[k])continue;const d=dateAt(m,r.day);if(d>now)continue;
+      const t={id:uid(),amt:r.amt,cat:r.kind==='Abonelik'?'Eğlence':r.kind==='Kira'?'Ev':'Fatura',src:r.src,date:iso(d),note:r.name,inst:1,rec:r.id,auto:true};S.tx.push(t);S.recPaid[k]=t.id;n++}});
+  if(n){persist();render();toast(n+' sabit gider otomatik işlendi')}}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)processAuto()});
 function payRec(id,m){const r=find(S.recurring,id),mm=m==null?ymOf(new Date()):m;
   if(!r.src){toast('Önce giderin ödeme kaynağını seç');return editRec({id})}
   openSheet({title:r.name+' ödemesi',body:`${fld('y_amt','Tutar (₺)',nv(r.amt),{t:'num',cls:'amtin'})}${fld('y_date','Tarih',iso(dateAt(mm,r.day)>new Date()?new Date():dateAt(mm,r.day)),{t:'date'})}<div class="note">${esc(srcName(r.src))} kaynağından harcama olarak işlenir. Faturan değiştiyse tutarı güncelleyebilirsin.</div>`,
    save(){const a=N('y_amt');if(!(a>0))return false;const t={id:uid(),amt:a,cat:r.kind==='Abonelik'?'Eğlence':r.kind==='Kira'?'Ev':'Fatura',src:r.src,date:V('y_date')||today(),note:r.name,inst:1,rec:r.id};S.tx.push(t);S.recPaid[r.id+'|'+mm]=t.id;if(Math.abs(a-r.amt)>.01)r.amt=a;persist();const c=r.src.startsWith('card:')?find(S.cards,r.src.slice(5)):null;render();toast(c?`${c.name} güncel borcu ${fmtI(cardInfo(c).currentDebt)}`:'Ödendi olarak işlendi')}})}
 A.payRec=d=>payRec(d.id);
-A.undoRec=d=>{const k=Object.keys(S.recPaid).find(k=>k.startsWith(d.id+'|')&&k.endsWith('|'+ymOf(new Date())));if(!k)return;const tid=S.recPaid[k];S.tx=S.tx.filter(t=>t.id!==tid);delete S.recPaid[k];save();toast('Ödeme geri alındı')};
+A.undoRec=d=>{const k=Object.keys(S.recPaid).find(k=>k.startsWith(d.id+'|')&&k.endsWith('|'+ymOf(new Date())));if(!k)return;const tid=S.recPaid[k];S.tx=S.tx.filter(t=>t.id!==tid);delete S.recPaid[k];(S.recSkip=S.recSkip||{})[k]=1;save();toast('Ödeme geri alındı')};
 function editRec(d){const x=d&&d.id?find(S.recurring,d.id):null,kind=(d&&d.kind)||(x?x.kind:'Fatura');
   openSheet({title:x?'Sabit gideri düzenle':'Sabit gider ekle',body:`${fld('s_kind','Tür',kind,{t:'chips',opts:Object.keys(PRE).map(k=>[k,k])})}<div class="f" id="s_pre"><span>Hızlı seç</span><div class="chips" id="s_prech"></div></div>${fld('s_name','Ad',x?x.name:'')}
-   <div class="f2">${fld('s_amt','Aylık tutar (₺)',x?nv(x.amt):'',{t:'num'})}${fld('s_day','Ayın günü',x?x.day:'',{t:'num',ph:'1-31'})}</div>${fld('s_src','Nereden ödenir?',x?x.src:(srcOpts()[0]||[''])[0],{t:'select',opts:[['','Seçilmedi'],...srcOpts()]})}${x?fld('s_act','Durum',x.active===false?'0':'1',{t:'chips',opts:[['1','Aktif'],['0','Pasif']]}):''}`,
+   <div class="f2">${fld('s_amt','Aylık tutar (₺)',x?nv(x.amt):'',{t:'num'})}${fld('s_day','Ayın günü',x?x.day:'',{t:'num',ph:'1-31'})}</div>${fld('s_src','Nereden ödenir?',x?x.src:(srcOpts()[0]||[''])[0],{t:'select',opts:[['','Seçilmedi'],...srcOpts()]})}${fld('s_auto','Ödeme günü gelince',x&&x.auto?'1':'0',{t:'chips',opts:[['0','Elle onaylarım'],['1','Otomatik işle']]})}<div class="note" id="s_autonote" style="margin-top:-6px">Tutarı sabit olan giderlerde (kira, abonelik) otomatik işlemeyi seç. Tutarı her ay değişen faturalarda elle onaylamak daha doğru olur. Otomatik için ödeme kaynağı seçmelisin.</div>${x?fld('s_act','Durum',x.active===false?'0':'1',{t:'chips',opts:[['1','Aktif'],['0','Pasif']]}):''}`,
    hook(){const k=V('s_kind'),c=$('#s_prech');if(c&&c.dataset.k!==k){c.dataset.k=k;c.innerHTML=(PRE[k]||[]).map(n=>`<button type="button" class="chip" data-act="preName" data-n="${esc(n)}">${esc(n)}</button>`).join('')}},
    save(){const a=N('s_amt'),dy=Math.round(N('s_day')),n=V('s_name').trim();if(!n||!(dy>=1&&dy<=31)){toast('Ad ve gün gerekli');return false}
-    const o={kind:V('s_kind'),name:n,amt:a,day:dy,src:V('s_src')};if(x){Object.assign(x,o);if(V('s_act'))x.active=V('s_act')==='1'}else S.recurring.push(Object.assign({id:uid(),active:true},o));save()},
+    const auto=V('s_auto')==='1';if(auto&&!V('s_src')){toast('Otomatik işlemek için ödeme kaynağı seç');return false}
+    const o={kind:V('s_kind'),name:n,amt:a,day:dy,src:V('s_src'),auto};if(auto&&!(x&&x.auto))o.autoFrom=ymOf(new Date());if(x){Object.assign(x,o);if(V('s_act'))x.active=V('s_act')==='1'}else S.recurring.push(Object.assign({id:uid(),active:true},o));save();processAuto()},
    del:x?()=>confirmSheet('Sabit gideri sil',esc(x.name)+' silinsin mi? Geçmiş ödemeler kalır.',()=>{S.recurring.splice(S.recurring.indexOf(x),1);save()}):null})}
 A.editRec=editRec;A.preName=d=>setV('s_name',d.n);
 
@@ -810,7 +817,7 @@ function demoData(){const D=emptyData(),dt=n=>addDays(n),id=uid;
 /* ============ başlat ============ */
 const _render=render;
 render=function(){if(ui.view==='cardDetail'){const y=window.scrollY;$('#app').innerHTML=vCardDetail();$('#nav').innerHTML=[['home','Özet','home'],['spend','Harcama','list'],['','','plus'],['cards','Kartlar','card'],['debts','Borçlar','debt']].map(([k,l,i])=>k===''?`<button class="fab" data-act="quick" aria-label="Harcama ekle">${ico('plus')}</button>`:`<button data-act="go" data-v="${k}" class="${k==='cards'?'on':''}">${ico(i)}${l}</button>`).join('');window.scrollTo(0,y)}else _render()};
-render();
+render();processAuto();
 if(location.protocol.startsWith('http')&&S.debts.some(d=>d.type==='gold')&&(!(S.cfg.gold&&S.cfg.gold.updated)||Date.now()-S.cfg.gold.updated>30*60*1000))goldFetch(true);
 if('serviceWorker' in navigator&&location.protocol.startsWith('http')){try{const had=!!navigator.serviceWorker.controller;let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!rl){rl=true;location.reload()}});navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{})}catch(e){}}
 </script>
