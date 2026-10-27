@@ -8,6 +8,8 @@ import { useTheme } from './src/theme';
 import { TabBar, Toast, Screen } from './src/ui/chrome';
 import { Home } from './src/screens/Home';
 import { Spend } from './src/screens/Spend';
+import { Cards, CardDetail } from './src/screens/Cards';
+import { Debts } from './src/screens/Debts';
 import { ExpenseSheet } from './src/ExpenseSheet';
 import { Card, Empty } from './src/ui/kit';
 
@@ -20,8 +22,9 @@ function Router() {
   switch (nav.view) {
     case 'home': return <Home />;
     case 'spend': return <Spend />;
-    case 'cards': case 'cardDetail': return <Soon title="Kartlar" />;
-    case 'debts': return <Soon title="Borçlar" />;
+    case 'cards': return <Cards />;
+    case 'cardDetail': return <CardDetail />;
+    case 'debts': return <Debts />;
     default: return <Soon title="Daha fazla" />;
   }
 }

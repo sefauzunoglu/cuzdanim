@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { emptyData, migrate, processAuto } from './core';
 import type { State } from './core';
+import { applyGoldPrices, fetchGoldPrices, goldStale } from './gold';
 
 const KEY = 'cuzdanim_v1';
 /** İkinci kopya: ana kayıt bozulursa buradan okunur. */
@@ -69,6 +70,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setS({ ...s });
       if (n) { persist(s); toast(`${n} sabit gider otomatik işlendi`); }
       setReady(true);
+      if (s.debts.some((d) => d.type === 'gold') && goldStale(s)) {
+        const p = await fetchGoldPrices();
+        if (p) { applyGoldPrices(ref.current, p); const c = { ...ref.current }; ref.current = c; setS(c); persist(c); }
+      }
     })();
   }, [persist, toast]);
 

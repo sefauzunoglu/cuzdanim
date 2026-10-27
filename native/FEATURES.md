@@ -38,24 +38,24 @@ Durum: ✅ tamam · ⬜ yapılacak. Ekran ✅ = React Native'de yazıldı ve tel
 ## Kartlar
 | Özellik | Çekirdek | Ekran |
 |---|---|---|
-| Kart ekle/düzenle/sil, hızlı banka seçimi | ✅ | ⬜ |
-| Limit, kesim ve son ödeme günü, takibe başlama tarihi, ödenmemiş son ekstre borcu | ✅ | ⬜ |
-| Asgari oran otomatik (BDDK 100.000 ₺ eşiği) veya elle | ✅ | ⬜ |
-| Aylık faiz otomatik (TCMB kademeleri) veya elle | ✅ | ⬜ |
-| Güncel borç, kesilen ekstre, asgari, açık dönem, kalan taksit, sonraki ekstre tahmini | ✅ | ⬜ |
-| "Ekstreyi nasıl ödersen": tamamı / asgari + faiz / asgari altı gecikme | ✅ | ⬜ |
-| Devam eden taksit listesi (kaçıncı, kalan) | ✅ | ⬜ |
-| Dönem kategorileri, ekstre dönemlerine göre hareketler, ödeme geçmişi | ✅ | ⬜ |
-| Kart borcu öde (asgari/ekstre/tümü), hesaptan düşme | ✅ | ⬜ |
+| Kart ekle/düzenle/sil, hızlı banka seçimi | ✅ ✅ |
+| Limit, kesim ve son ödeme günü, takibe başlama tarihi, ödenmemiş son ekstre borcu | ✅ ✅ |
+| Asgari oran otomatik (BDDK 100.000 ₺ eşiği) veya elle | ✅ ✅ |
+| Aylık faiz otomatik (TCMB kademeleri) veya elle | ✅ ✅ |
+| Güncel borç, kesilen ekstre, asgari, açık dönem, kalan taksit, sonraki ekstre tahmini | ✅ ✅ |
+| "Ekstreyi nasıl ödersen": tamamı / asgari + faiz / asgari altı gecikme | ✅ ✅ |
+| Devam eden taksit listesi (kaçıncı, kalan) | ✅ ✅ |
+| Dönem kategorileri, ekstre dönemlerine göre hareketler, ödeme geçmişi | ✅ ✅ |
+| Kart borcu öde (asgari/ekstre/tümü), hesaptan düşme | ✅ ✅ |
 
 ## Borçlar
 | Özellik | Çekirdek | Ekran |
 |---|---|---|
-| Kredi, şahsi, diğer borç: ekle, düzenle, sil, ödeme | ✅ | ⬜ |
-| Altın borcu: gram/çeyrek/yarım/tam, ödeme cinsinden | ✅ | ⬜ |
-| Altın fiyatları: canlı çekme (açılışta 30 dk), elle girme, tahmini katsayılar | ✅ | ⬜ |
-| Toplam borca altın günü kalanı (alacak alındıysa) | ✅ | ⬜ |
-| Son borç ödemeleri | ✅ | ⬜ |
+| Kredi, şahsi, diğer borç: ekle, düzenle, sil, ödeme | ✅ ✅ |
+| Altın borcu: gram/çeyrek/yarım/tam, ödeme cinsinden | ✅ ✅ |
+| Altın fiyatları: canlı çekme (açılışta 30 dk), elle girme, tahmini katsayılar | ✅ ✅ |
+| Toplam borca altın günü kalanı (alacak alındıysa) | ✅ ✅ |
+| Son borç ödemeleri | ✅ ✅ |
 
 ## Daha fazla
 | Özellik | Çekirdek | Ekran |
