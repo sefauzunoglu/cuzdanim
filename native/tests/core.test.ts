@@ -188,3 +188,49 @@ t('yedek biçimi: JSON gidiş-dönüş verileri korur', () => {
 });
 
 console.log(`\n${n} test geçti`);
+
+import { formatAmountInput as fa, num } from '../src/core/format';
+/** Tuşa tuşa yazmayı taklit eder: her tuştan sonra biçim yeniden uygulanır (alandaki metin geri beslenir). */
+const typing = (str: string, maxDec = 2, final = false) => { let cur = '', auto = false; for (const ch of str) { const r = fa(cur + ch, (cur + ch).length, maxDec, false, auto); cur = r.text; auto = r.auto; } return final ? fa(cur, cur.length, maxDec, true, auto).text : cur; };
+t('canlı tutar biçimi: tuşa tuşa yazma', () => {
+  assert.equal(typing('1250.5'), '1.250,5');
+  assert.equal(typing('1250,5'), '1.250,5');
+  assert.equal(typing('1.250,50'), '1.250,50');
+  assert.equal(typing('1234567'), '1.234.567');
+  assert.equal(typing('1234567,89'), '1.234.567,89');
+  assert.equal(typing('1.234.567,89'), '1.234.567,89');
+  assert.equal(typing('12345,678'), '12.345,67');
+  assert.equal(typing('12345,678', 3), '12.345,678');
+  assert.equal(typing('1.250'), '1.250');
+  assert.equal(typing('12.500'), '12.500');
+  assert.equal(typing('1.234.567', 2, true), '1.234.567');
+  assert.equal(typing('1234.5'), '1.234,5');
+  assert.equal(typing('12.5', 2, true), '12,5');
+  assert.equal(typing('250.75', 2, true), '250,75');
+  assert.equal(typing('0,5'), '0,5');
+  assert.equal(typing('abc12'), '12');
+});
+t('canlı tutar biçimi: belirsiz kısa nokta alandan çıkınca karar verilir', () => {
+  assert.equal(fa('12.5').text, '12.5');                     // yazarken bırakılır
+  assert.equal(fa('12.5', 4, 2, true).text, '12,5');         // alandan çıkınca ondalık
+  assert.equal(fa('1.25', 4, 2, true).text, '1,25');
+  assert.equal(fa('12.', 3, 2, true).text, '12,');
+  assert.equal(fa('1250.5').text, '1.250,5');                // 4+ hane: hemen ondalık
+  assert.equal(num(fa('12.5', 4, 2, true).text), 12.5);
+  assert.equal(num('12.5'), 12.5);                           // kaydederken bu da doğru okunur
+});
+t('canlı tutar biçimi: diğer girişler', () => {
+  assert.equal(fa('1250,').text, '1.250,');
+  assert.equal(fa(',5').text, '0,5');
+  assert.equal(fa('0005').text, '5');
+  assert.equal(fa('₺ 3000').text, '3.000');
+  assert.equal(fa('abc').text, '');
+  assert.equal(num(fa('1234567').text), 1234567);
+});
+t('canlı tutar biçimi: imleç korunur', () => {
+  assert.equal(fa('1250', 4).caret, 5);
+  assert.equal(fa('1250,', 5).caret, 6);
+  assert.equal(fa('12345', 2).caret, 2);
+  assert.equal(fa('1250', 0).caret, 0);
+});
+console.log(`\n${n} test geçti`);

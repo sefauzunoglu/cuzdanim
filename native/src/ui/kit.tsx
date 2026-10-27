@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, KeyboardAvoidingView, ViewStyle, TextStyle } from 'react-native';
 import { useTheme, FONT_NUM } from '../theme';
 import { Icon } from './icons';
-import { CATICO, catIndex } from '../core';
+import { CATICO, catIndex, formatAmountInput } from '../core';
 import { useApp } from '../store';
 
 export const SP = { gutter: 16 };
@@ -127,13 +127,21 @@ export function Kpi({ label, value, tone }: { label: string; value: string; tone
   return <View style={{ flex: 1, backgroundColor: t.surface, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12, minWidth: 0 }}><Text style={{ color: t.muted, fontSize: 11 }}>{label}</Text><Text numberOfLines={1} adjustsFontSizeToFit style={[{ fontSize: 16, fontWeight: '700', color: tone === 'good' ? t.good : tone === 'bad' ? t.bad : t.ink }, FONT_NUM]}>{value}</Text></View>;
 }
 
-/** Etiketli yazı kutusu. num=true ise ondalık klavye. */
+/** Etiketli yazı kutusu. num=true ise ondalık klavye ve yazarken canlı tutar biçimi (1.250,5). */
 export function Field({ label, value, onChange, num, big, placeholder, multiline }: { label: string; value: string; onChange: (v: string) => void; num?: boolean; big?: boolean; placeholder?: string; multiline?: boolean }) {
   const t = useTheme();
+  const auto = useRef(false);
+  const change = (v: string) => {
+    if (!num) return onChange(v);
+    const r = formatAmountInput(v, v.length, 3, false, auto.current);
+    auto.current = r.auto;
+    onChange(r.text);
+  };
+  const blur = () => { if (num) { const r = formatAmountInput(value, value.length, 3, true, auto.current); auto.current = r.auto; if (r.text !== value) onChange(r.text); } };
   return (
     <View style={{ marginBottom: 12 }}>
       <Text style={{ color: t.muted, fontSize: 12, fontWeight: '600', marginBottom: 5 }}>{label}</Text>
-      <TextInput value={value} onChangeText={onChange} placeholder={placeholder ?? (num ? '0' : undefined)} placeholderTextColor={t.muted + '99'} keyboardType={num ? 'decimal-pad' : 'default'} multiline={multiline}
+      <TextInput value={value} onChangeText={change} onBlur={blur} placeholder={placeholder ?? (num ? '0' : undefined)} placeholderTextColor={t.muted + '99'} keyboardType={num ? 'decimal-pad' : 'default'} multiline={multiline}
         style={{ minHeight: big ? 64 : 46, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1.5, borderColor: t.line, backgroundColor: t.surface, color: t.ink, fontSize: big ? 32 : 16, fontWeight: big ? '800' : '400' }} />
     </View>
   );
