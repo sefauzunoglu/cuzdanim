@@ -17,6 +17,8 @@ export interface Tx {
   sub?: string; car?: Id; km?: number; rec?: string; auto?: boolean;
   /** Harcamanın yapıldığı sanal kart (ana kartın vcards listesindeki id) */
   vc?: Id;
+  /** Geçmiş kayıt: kesilmiş ekstre borcuna sayılmaz (borç zaten elle girildi veya ekstre ödendi). Açık dönem ve gelecek taksitler yine sayılır. */
+  hist?: boolean;
 }
 export interface Income { id: Id; date: string; amt: number; note?: string; acc: Id; rec?: Id }
 export interface Transfer { id: Id; date: string; amt: number; from: Id; to: Id; toText?: string; note?: string }

@@ -52,7 +52,7 @@ export const LATE = 0.30;
 export function cardInfo(S: State, c: Card) {
   const now = clock.now(), cur = ymOf(now) + (now.getDate() > c.cutoff ? 1 : 0), ch = charges(S, c);
   const si = c.since ? stmtIdx(c, c.since) : -1e9;
-  const billed = sum(ch.filter((x) => x.idx < cur && x.idx >= si), (x) => x.amt) + (+(c.openDebt || 0));
+  const billed = sum(ch.filter((x) => x.idx < cur && x.idx >= si && !x.tx.hist), (x) => x.amt) + (+(c.openDebt || 0));
   const open = sum(ch.filter((x) => x.idx === cur), (x) => x.amt);
   const future = sum(ch.filter((x) => x.idx > cur), (x) => x.amt);
   const paid = sum(S.cardPay.filter((p) => p.card === c.id), (p) => p.amt);

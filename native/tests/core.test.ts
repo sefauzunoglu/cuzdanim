@@ -42,6 +42,22 @@ t('geçmiş taksit: takip başlangıcından önceki taksitler ödenmiş sayılı
   assert.equal(Math.round(i.avail), 36000);
 });
 
+t('geçmiş kayıt (hist): kesilmiş ekstre borcuna sayılmaz, açık dönem ve gelecek taksit sayılır', () => {
+  const S = c.emptyData();
+  const card = { id: 'c', name: 'K', limit: 100000, cutoff: 28, due: 8, openDebt: 7000, since: '2026-08-01' };
+  S.cards.push(card);
+  // Geçen ekstreye (Eylül) düşen 3.000 ₺'lik harcama + 3 taksitli (Eylül'den başlayan) 9.000 ₺'lik alışveriş
+  S.tx.push({ id: 'a', date: '2026-09-10', amt: 3000, cat: 'Market', src: 'card:c', inst: 1 });
+  S.tx.push({ id: 'b', date: '2026-09-12', amt: 9000, cat: 'Giyim', src: 'card:c', inst: 3 });
+  const before = c.cardInfo(S, card);
+  assert.equal(Math.round(before.closedDebt), 7000 + 3000 + 3000);
+  S.tx.forEach((t) => { t.hist = true; });
+  const after = c.cardInfo(S, card);
+  assert.equal(Math.round(after.closedDebt), 7000);            // kesilmiş borç yalnızca elle girilen
+  assert.equal(Math.round(after.openDebt), 3000);              // bu ayki taksit parçası yine sayılır
+  assert.equal(Math.round(after.future), 3000);                // kalan taksit yine limite yansır
+});
+
 t('kart ödemesi borcu düşürür, fazlası açık döneme sayılır', () => {
   const S = c.emptyData();
   const card = { id: 'c', name: 'K', limit: 90000, cutoff: 28, due: 5, openDebt: 10000, since: c.today() };
