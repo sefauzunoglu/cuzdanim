@@ -198,7 +198,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=32;
+const KEY='cuzdanim_v1',VER=33;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -629,7 +629,11 @@ A.stmtOpen=d=>{const c=find(S.cards,d.id);if(!c)return;stm={card:c.id,sections:n
    saveLabel:'Metni oku',save(){const t=($('#st_txt')||{}).value||'';if(!t.trim()){toast('Önce dosya seç veya metni yapıştır');return false}
      const r=Stmt.parseStatement(t);if(!r.lines.length){toast('Harcama satırı bulunamadı');return false}
      stm.sections=[{last4:'',title:'',lines:r.lines,skipped:[],summary:r.summary}];setTimeout(stmtReview,0);return true}})};
-const stmtDupPred=(card,l)=>t=>t.src==='card:'+card.id&&Math.abs((t.amt/(t.inst||1))-l.amt)<.01&&(t.date===l.date||(l.inst&&t.inst>1));
+/* Taksit satırı: banka her ay k/n'yi ve birkaç kuruş farklı tutarı yazar; açıklama köküyle eşleştir */
+const stmtRoot=x=>String(x||'').toUpperCase().replace(/\(KALAN TAKS[^)]*\)/g,' ').replace(/\(\d+\/\d+\)/g,' ').replace(/\s+/g,' ').trim();
+const stmtDupPred=(card,l)=>t=>{if(t.src!=='card:'+card.id)return false;const per=t.amt/(t.inst||1);
+  if(l.inst&&t.inst>1&&stmtRoot(t.note)===stmtRoot(l.desc)&&Math.abs(per-l.amt)<=Math.max(.5,l.amt*.002))return true;
+  return Math.abs(per-l.amt)<.01&&(t.date===l.date||(l.inst&&t.inst>1))};
 const stmtDupOf=(card,l,pool)=>(pool||S.tx).some(stmtDupPred(card,l));
 function stmtDefaultCard(sec,i,n){
   if(sec.last4){for(const c of S.cards){if(c.last4===sec.last4)return c.id;const v=(c.vcards||[]).find(v=>v.last4===sec.last4);if(v)return c.id+':vc:'+v.id}}
