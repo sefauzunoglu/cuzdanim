@@ -198,7 +198,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=21;
+const KEY='cuzdanim_v1',VER=22;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -324,7 +324,7 @@ function openSheet(o){
   const el=$('#sheet');
   el.innerHTML=`<h3><span>${o.title}</span><button class="ib" data-act="sheetClose" aria-label="Kapat" style="width:34px;height:34px">✕</button></h3>${o.body}
   <div class="btns">${o.del?'<button class="btn danger" data-act="sheetDel" style="flex:0 0 auto">Sil</button>':''}${o.save===null?'':`<button class="btn pri" data-act="sheetSave">${o.saveLabel||'Kaydet'}</button>`}</div>`;
-  $('#sheetBg').hidden=false;el.scrollTop=0;saveFn=o.save;delFn=o.del;hook=o.hook||null;if(hook)hook()}
+  $$('#sheet input[inputmode=decimal]').forEach(el=>fmtLive(el,true));$('#sheetBg').hidden=false;el.scrollTop=0;saveFn=o.save;delFn=o.del;hook=o.hook||null;if(hook)hook()}
 const fld=(id,label,val,o={})=>{const t=o.t||'text';
   if(t==='select')return `<label class="f"><span>${label}</span><select id="${id}">${o.opts.map(([v,l])=>`<option value="${esc(v)}"${v==val?' selected':''}>${esc(l)}</option>`).join('')}</select></label>`;
   if(t==='chips')return `<div class="f"><span>${label}</span><div class="chips${o.scroll?' scroll':''}" id="${id}" data-chips>${o.opts.map(([v,l])=>`<button type="button" class="chip${v==val?' on':''}" data-v="${esc(v)}">${esc(l)}</button>`).join('')}</div></div>`;
@@ -344,6 +344,10 @@ document.addEventListener('click',e=>{
   if(ch&&ch.parentElement.hasAttribute('data-chips')){$$('.chip',ch.parentElement).forEach(c=>c.classList.remove('on'));ch.classList.add('on');if(hook)hook();return}
   const b=e.target.closest('[data-act]');
   if(b){const f=A[b.dataset.act];if(f)f(b.dataset,b)}});
+/* Tutar alanlarında canlı biçim: binlik nokta, ondalık virgül (1250.5 → 1.250,5) */
+function fmtLive(el,fin){if(!el||!window.Stmt)return;const raw=el.value,c=el.selectionStart==null?raw.length:el.selectionStart,r=Stmt.formatAmountInput(raw,c,3,!!fin,!!el._auto);el._auto=r.auto;if(r.text!==raw){el.value=r.text;try{el.setSelectionRange(r.caret,r.caret)}catch(e){}}}
+document.addEventListener('input',e=>{const t=e.target;if(t&&t.matches&&t.matches('input[inputmode=decimal]'))fmtLive(t)},true);
+document.addEventListener('change',e=>{const t=e.target;if(t&&t.matches&&t.matches('input[inputmode=decimal]'))fmtLive(t,true)},true);
 document.addEventListener('input',e=>{if(hook&&e.target.closest('#sheet'))hook()});
 $('#sheetBg').addEventListener('click',e=>{if(e.target.id==='sheetBg')sheetClose()});
 A.sheetClose=sheetClose;
