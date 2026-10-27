@@ -68,6 +68,13 @@ Durum: ✅ tamam · ⬜ yapılacak. Ekran ✅ = React Native'de yazıldı ve tel
 | Borçtan çıkış senaryosu: ekstra ve tek seferlik ödeme, çığ/kartopu, grafik, boş para tahmini | ✅ | ✅ |
 | Hesaplar: bakiye, nakit akışı ("para nereye gitti") | ✅ | ✅ |
 
+## Ekstreden içe aktarma (yeni, önce web uygulamasında)
+| Özellik | Çekirdek | Ekran |
+|---|---|---|
+| Ekstre PDF'i veya yapıştırılan metinden harcama satırlarını okuma (`src/core/statement.ts`, 10 test) | ✅ | ⬜ |
+| Okunanları onaylatma, kategori düzeltme, tekrar kontrolü, taksit için kalan taksitler, ödeme/iade ayrımı | ✅ | ⬜ |
+| Ekstre özeti (kesim, son ödeme, dönem borcu, asgari) gösterme ve kart günlerini güncelleme | ✅ | ⬜ |
+
 ## Notlar
 - Eski veriyi taşıma: PWA'daki yedek metni yeni uygulamaya geri yüklenebilmeli (`migrate` bunu karşılar).
 - Çekirdeğin doğruluğu: `npm test` (19 birim testi) ve `tests/parity.ts` (eski uygulamayla 5 farklı tarihte birebir karşılaştırma).
