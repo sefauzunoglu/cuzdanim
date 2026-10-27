@@ -7,6 +7,8 @@ export interface Card {
   id: Id; name: string; limit: number; cutoff: number; due: number;
   minAuto?: boolean; minRate?: number; rateAuto?: boolean; rate?: number;
   openDebt?: number; since?: string;
+  /** Kartın son 4 hanesi: Excel ekstresindeki bölümü kartla eşleştirmek için */
+  last4?: string;
 }
 export interface Tx {
   id: Id; date: string; amt: number; cat: string; src: SrcRef; note?: string; inst: number;

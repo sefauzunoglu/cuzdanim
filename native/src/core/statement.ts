@@ -56,8 +56,9 @@ export function guessCategory(desc: string): { cat: string; sub?: string } {
 const PAY = /(^|\s)(ODEME|TAHSILAT|IADE|IPTAL|DEKONT)(\s|$)|ODEMENIZ|ODEME ALINDI|KART ODEMESI/;
 const INST1 = /(\d{1,2})\s*\/\s*(\d{1,2})\s*\.?\s*TAKS[IİıÌ]?T?/i;
 const INST2 = /TAKS[IİıÌ]T\s*:?\s*(\d{1,2})\s*\/\s*(\d{1,2})/i;
-const instOf = (desc: string) => {
-  const m = INST1.exec(trUp(desc)) || INST2.exec(trUp(desc));
+const INST3 = /\((\d{1,2})\s*\/\s*(\d{1,2})\)/;
+export const instOf = (desc: string) => {
+  const m = INST1.exec(trUp(desc)) || INST2.exec(trUp(desc)) || INST3.exec(desc);
   if (!m) return undefined;
   const k = +m[1], n = +m[2];
   return k >= 1 && n >= 2 && k <= n && n <= 60 ? { k, n } : undefined;
