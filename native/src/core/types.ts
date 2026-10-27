@@ -9,10 +9,14 @@ export interface Card {
   openDebt?: number; since?: string;
   /** Kartın son 4 hanesi: Excel ekstresindeki bölümü kartla eşleştirmek için */
   last4?: string;
+  /** Sanal kartlar: ana kartın limitini ve ekstresini paylaşır, harcamalar ayrıca gruplanır */
+  vcards?: { id: Id; name: string; last4?: string }[];
 }
 export interface Tx {
   id: Id; date: string; amt: number; cat: string; src: SrcRef; note?: string; inst: number;
   sub?: string; car?: Id; km?: number; rec?: string; auto?: boolean;
+  /** Harcamanın yapıldığı sanal kart (ana kartın vcards listesindeki id) */
+  vc?: Id;
 }
 export interface Income { id: Id; date: string; amt: number; note?: string; acc: Id; rec?: Id }
 export interface Transfer { id: Id; date: string; amt: number; from: Id; to: Id; toText?: string; note?: string }

@@ -75,6 +75,14 @@ Durum: ✅ tamam · ⬜ yapılacak. Ekran ✅ = React Native'de yazıldı ve tel
 | Okunanları onaylatma, kategori düzeltme, tekrar kontrolü, taksit için kalan taksitler, ödeme/iade ayrımı | ✅ | ⬜ |
 | Ekstre özeti (kesim, son ödeme, dönem borcu, asgari) gösterme ve kart günlerini güncelleme | ✅ | ⬜ |
 
+## Ekstre Excel/CSV ve sanal kartlar (yeni, önce web uygulamasında)
+| Özellik | Çekirdek | Ekran |
+|---|---|---|
+| Excel/CSV ekstre okuma, çok kartlı dosya, kartın son 4 hanesiyle eşleştirme (`statementTable.ts`, 8 test) | ✅ | ⬜ |
+| Sanal kartlar: ana karta bağlı, limit ve ekstre ortak, harcama sanal karta etiketli (`Card.vcards`, `Tx.vc`) | ✅ (tür) | ⬜ |
+| Harcama formunda sanal kart seçimi, Harcamalar'da sanal karta göre gruplama/filtre, kart ayrıntısında sanal kart özeti | – | ⬜ |
+| Excel bölümlerini kart veya sanal karta otomatik eşleme, tekrar kontrolü (yalnızca önceden kayıtlılara karşı) | – | ⬜ |
+
 ## Notlar
 - Eski veriyi taşıma: PWA'daki yedek metni yeni uygulamaya geri yüklenebilmeli (`migrate` bunu karşılar).
 - Çekirdeğin doğruluğu: `npm test` (19 birim testi) ve `tests/parity.ts` (eski uygulamayla 5 farklı tarihte birebir karşılaştırma).
