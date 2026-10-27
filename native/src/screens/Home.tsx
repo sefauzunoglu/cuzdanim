@@ -8,10 +8,15 @@ import { useTheme, FONT_NUM } from '../theme';
 import { Avatar, Bar, Btn, BtnRow, Card, Empty, Kpi, Pill, Row, Section, Sheet, Tip, utilTone } from '../ui/kit';
 import { Screen } from '../ui/chrome';
 import { demoData } from '../core';
+import { PaySheet } from './Cards';
+import { PayRec } from './Fixed';
+import { GotSheet } from './Income';
+import { DebtPay } from './Debts';
 
 export function Home() {
   const { S, replace, toast } = useApp(), nav = useNav(), t = useTheme();
   const [allTips, setAllTips] = useState(false);
+  const [pay, setPay] = useState<{ k: string; id: string; m?: number } | null>(null);
   const empty = !S.cards.length && !S.accounts.length && !S.debts.length && !S.tx.length;
   if (empty) {
     return (
@@ -69,7 +74,7 @@ export function Home() {
           {up.length ? up.map((u, i) => {
             const dd = core.daysTo(u.d), lab = dd < 0 ? (u.out ? `${-dd} gün gecikti` : 'Bekleniyor') : dd === 0 ? 'Bugün' : dd === 1 ? 'Yarın' : dd + ' gün';
             const tone = dd < 0 && u.out ? 'bad' : dd <= 3 && u.out ? 'warn' : 'neutral';
-            return <Row key={i} first={i === 0} lead={<Avatar name={u.t} />} title={u.t} sub={`${core.dshort(u.d)} · ${u.s}`} right={(u.out ? '' : '+') + core.fmtI(u.amt)} rightSub={<Pill tone={tone as any}>{lab}</Pill>} />;
+            return <Row key={i} first={i === 0} lead={<Avatar name={u.t} />} title={u.t} sub={`${core.dshort(u.d)} · ${u.s}`} right={(u.out ? '' : '+') + core.fmtI(u.amt)} rightSub={<Pill tone={tone as any}>{lab}</Pill>} onPress={() => { if (u.k === 'gun' || u.k === 'gunr') nav.go('gun'); else setPay({ k: u.k, id: u.id, m: u.m }); }} />;
           }) : <Empty title="Önümüzdeki 14 gün sakin" text="Yaklaşan ödeme veya gelir yok." />}
         </Card>
       </Section>
@@ -105,6 +110,10 @@ export function Home() {
           ) : <Empty title="Taksit yok" text="Taksitli bir harcama girince gelecek aylara etkisi burada görünür." />}
         </Card>
       </Section>
+      <PaySheet open={pay?.k === 'card'} cardId={pay?.id || ''} onClose={() => setPay(null)} />
+      <PayRec id={pay?.k === 'rec' ? pay.id : null} onClose={() => setPay(null)} />
+      <GotSheet id={pay?.k === 'inc' ? pay.id : null} onClose={() => setPay(null)} />
+      <DebtPay id={pay?.k === 'debt' ? pay.id : null} onClose={() => setPay(null)} />
       <Sheet visible={allTips} title="Tüm öneriler" onClose={() => setAllTips(false)}>
         {tips.map((x, i) => <Tip key={i} level={x.l} title={x.t} text={x.s} onPress={() => { setAllTips(false); if (x.go) nav.go(x.go as any); }} />)}
       </Sheet>

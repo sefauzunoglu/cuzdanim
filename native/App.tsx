@@ -10,6 +10,14 @@ import { Home } from './src/screens/Home';
 import { Spend } from './src/screens/Spend';
 import { Cards, CardDetail } from './src/screens/Cards';
 import { Debts } from './src/screens/Debts';
+import { More } from './src/screens/More';
+import { Settings } from './src/screens/Settings';
+import { Accounts } from './src/screens/Accounts';
+import { Fixed } from './src/screens/Fixed';
+import { Income } from './src/screens/Income';
+import { Car } from './src/screens/Car';
+import { Gun } from './src/screens/Gun';
+import { Scenario } from './src/screens/Scenario';
 import { ExpenseSheet } from './src/ExpenseSheet';
 import { Card, Empty } from './src/ui/kit';
 
@@ -25,7 +33,15 @@ function Router() {
     case 'cards': return <Cards />;
     case 'cardDetail': return <CardDetail />;
     case 'debts': return <Debts />;
-    default: return <Soon title="Daha fazla" />;
+    case 'more': return <More />;
+    case 'set': return <Settings />;
+    case 'acc': return <Accounts />;
+    case 'fixed': return <Fixed />;
+    case 'income': return <Income />;
+    case 'car': return <Car />;
+    case 'gun': return <Gun />;
+    case 'scen': return <Scenario />;
+    default: return <Soon title="Bu ekran" />;
   }
 }
 

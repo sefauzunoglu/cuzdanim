@@ -103,7 +103,7 @@ function PriceForm({ open, onClose, onLive }: { open: boolean; onClose: () => vo
   );
 }
 
-function DebtPay({ id, onClose }: { id: string | null; onClose: () => void }) {
+export function DebtPay({ id, onClose }: { id: string | null; onClose: () => void }) {
   const { S, update, toast } = useApp();
   const d = id ? core.find(S.debts, id) : undefined;
   const [amt, setAmt] = useState(''), [gold, setGold] = useState<Record<string, string>>({}), [from, setFrom] = useState(''), [date, setDate] = useState(core.today());

@@ -135,7 +135,7 @@ export function CardDetail() {
   );
 }
 
-function PaySheet({ open, cardId, onClose }: { open: boolean; cardId: string; onClose: () => void }) {
+export function PaySheet({ open, cardId, onClose }: { open: boolean; cardId: string; onClose: () => void }) {
   const { S, update, toast } = useApp();
   const c = core.find(S.cards, cardId);
   const [amt, setAmt] = useState(''), [from, setFrom] = useState(''), [date, setDate] = useState(core.today());

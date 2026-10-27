@@ -6,13 +6,13 @@ Durum: ✅ tamam · ⬜ yapılacak. Ekran ✅ = React Native'de yazıldı ve tel
 ## Genel
 | Özellik | Çekirdek | Ekran |
 |---|---|---|
-| Alt sekmeler: Özet, Harcama, **+**, Kartlar, Borçlar; üstte "Daha fazla" | – | ⬜ |
-| Açık/koyu tema (sistem, açık, koyu) | – | ⬜ |
-| Örnek veri yükle, örnekleri sil banner'ı, her şeyi sil | ✅ | ⬜ |
-| Yedek: Dosyalar/iCloud'a kaydet, metni kopyala, geri yükle (dosya veya yapıştır), son yedek tarihi, 7 gün hatırlatması | ✅ (biçim) | ⬜ |
-| Veriyi iki yerde saklama ve eksilirse geri yükleme | – | ⬜ |
-| Simgeler açık/kapalı (baş harf daireleri, kategori simgeleri) | – | ⬜ |
-| Sürüm bilgisi | – | ⬜ |
+| Alt sekmeler: Özet, Harcama, **+**, Kartlar, Borçlar; üstte "Daha fazla" | – | ✅ |
+| Açık/koyu tema (sistem, açık, koyu) | – | ✅ |
+| Örnek veri yükle, örnekleri sil banner'ı, her şeyi sil | ✅ | ✅ |
+| Yedek: Dosyalar/iCloud'a kaydet, metni kopyala, geri yükle (dosya veya yapıştır), son yedek tarihi, 7 gün hatırlatması | ✅ (biçim) | ✅ |
+| Veriyi iki yerde saklama ve eksilirse geri yükleme (aynı depoda iki anahtar) | – | ✅ |
+| Simgeler açık/kapalı (baş harf daireleri, kategori simgeleri) | – | ✅ |
+| Sürüm bilgisi | – | ✅ |
 
 ## Özet
 | Özellik | Çekirdek | Ekran |
@@ -20,7 +20,7 @@ Durum: ✅ tamam · ⬜ yapılacak. Ekran ✅ = React Native'de yazıldı ve tel
 | Toplam borç (kart + kredi/altın/diğer + kalan taksit) | ✅ ✅ |
 | Nakit varlık, bu ay gelir ve gider | ✅ ✅ |
 | Öneri motoru (ekstre günü, limit, boş para, taksit yükü, abonelik, araba tarihleri, altın, gecikme) | ✅ ✅ |
-| Yaklaşan 14 gün: kart ekstresi, sabit gider, gelir, borç taksiti, altın günü; dokununca öde | ✅ | ⬜ |
+| Yaklaşan 14 gün: kart ekstresi, sabit gider, gelir, borç taksiti, altın günü; dokununca öde | ✅ | ✅ |
 | Kart mini kartları (kalan limit, doluluk) | ✅ ✅ |
 | Gelecek 6 ay taksit yükü grafiği | ✅ ✅ |
 
@@ -60,14 +60,22 @@ Durum: ✅ tamam · ⬜ yapılacak. Ekran ✅ = React Native'de yazıldı ve tel
 ## Daha fazla
 | Özellik | Çekirdek | Ekran |
 |---|---|---|
-| Gelir ve transfer: tek seferlik gelir, düzenli gelir ("Geldi"), hesaplar arası/dış transfer | ✅ | ⬜ |
-| Sabit giderler: kira, fatura, abonelik, diğer; hızlı seçim adları | ✅ | ⬜ |
-| Öde, geri al, otomatik işle, pasif/iptal | ✅ | ⬜ |
-| Araba: ekleme, muayene/sigorta/kasko tarihleri, aylık ve yıllık toplam, türe göre, km başına maliyet, karttan ödenen | ✅ | ⬜ |
-| Altın / para günü: ay ay kutular, sıra, alacak, ödeme, geri alma, "Aldım", borç gibi kalan | ✅ | ⬜ |
-| Borçtan çıkış senaryosu: ekstra ve tek seferlik ödeme, çığ/kartopu, grafik, boş para tahmini | ✅ | ⬜ |
-| Hesaplar: bakiye, nakit akışı ("para nereye gitti") | ✅ | ⬜ |
+| Gelir ve transfer: tek seferlik gelir, düzenli gelir ("Geldi"), hesaplar arası/dış transfer | ✅ | ✅ |
+| Sabit giderler: kira, fatura, abonelik, diğer; hızlı seçim adları | ✅ | ✅ |
+| Öde, geri al, otomatik işle, pasif/iptal | ✅ | ✅ |
+| Araba: ekleme, muayene/sigorta/kasko tarihleri, aylık ve yıllık toplam, türe göre, km başına maliyet, karttan ödenen | ✅ | ✅ |
+| Altın / para günü: ay ay kutular, sıra, alacak, ödeme, geri alma, "Aldım", borç gibi kalan | ✅ | ✅ |
+| Borçtan çıkış senaryosu: ekstra ve tek seferlik ödeme, çığ/kartopu, grafik, boş para tahmini | ✅ | ✅ |
+| Hesaplar: bakiye, nakit akışı ("para nereye gitti") | ✅ | ✅ |
 
 ## Notlar
 - Eski veriyi taşıma: PWA'daki yedek metni yeni uygulamaya geri yüklenebilmeli (`migrate` bunu karşılar).
 - Çekirdeğin doğruluğu: `npm test` (19 birim testi) ve `tests/parity.ts` (eski uygulamayla 5 farklı tarihte birebir karşılaştırma).
+
+## Gerçek iPhone'da denenmesi gerekenler (web çıktısında doğrulanamayanlar)
+- Tarih seçici (iOS yerel seçici), klavye açılınca formların kayması, alt çubuğun ve üst başlığın güvenli alanları
+- Yedek: Dosyalar/iCloud'a kaydet menüsü, yedek dosyası seçici, metni kopyalama
+- Canlı altın fiyatı çekme (servis erişimi) ve açılışta otomatik yenileme
+- Uygulama açılışında sabit giderlerin otomatik işlenmesi
+- Koyu tema ve sistem teması geçişi
+- Büyük veride (yüzlerce harcama) kaydırma ve açılış hızı
