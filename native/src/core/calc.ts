@@ -36,7 +36,7 @@ export function charges(S: State, c: Card): Charge[] {
   const out: Charge[] = [];
   S.tx.forEach((t) => {
     if (t.src !== 'card:' + c.id) return;
-    const n = t.inst || 1, b = stmtIdx(c, t.date);
+    const n = t.inst || 1, b = stmtIdx(c, t.sd || t.date);
     for (let k = 0; k < n; k++) out.push({ idx: b + k, amt: t.amt / n, tx: t, k, n });
   });
   return out;

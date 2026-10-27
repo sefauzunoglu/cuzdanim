@@ -19,6 +19,9 @@ export interface Tx {
   vc?: Id;
   /** Geçmiş kayıt: kesilmiş ekstre borcuna sayılmaz (borç zaten elle girildi veya ekstre ödendi). Açık dönem ve gelecek taksitler yine sayılır. */
   hist?: boolean;
+  /** bankadan içe aktarma anahtarı ve ekstre dönemi için tarih geçersiz kılma */
+  imp?: string;
+  sd?: string;
 }
 export interface Income { id: Id; date: string; amt: number; note?: string; acc: Id; rec?: Id }
 export interface Transfer { id: Id; date: string; amt: number; from: Id; to: Id; toText?: string; note?: string }
