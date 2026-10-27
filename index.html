@@ -215,7 +215,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=22;
+const KEY='cuzdanim_v1',VER=23;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -640,7 +640,17 @@ function stmtPeriod(card,cut,lines){
   const [a,b]=stmtRange(cc,idx);
   return {cc,cur,idx,multi:idxs.length>1,state:idx>=cur?'open':idx===cur-1?'last':'old',range:`${dshort(a)} – ${dshort(b)}`,due:stmtDue(cc,idx),label:ymLabel(idx)}}
 const stmtTypeLabel={last:'Son kesilen ekstre',old:'Daha eski ekstre',open:'Açık dönem (henüz kesilmedi)'};
-function stmtUI(si){
+function stmtFind4(l4){if(!l4)return null;for(const c of S.cards){if(c.last4===l4)return {card:c,label:c.name+' (ana kart)',val:c.id};const v=(c.vcards||[]).find(v=>v.last4===l4);if(v)return {card:c,label:v.name+' (sanal kart)',val:c.id+':vc:'+v.id}}return null}
+function stmtMatch(si){
+  const sec=stm.sections[si],el=$('#st_match'+si),cur=($('#st_card'+si)||{}).value||'';if(!el)return;
+  const f=stmtFind4(sec.last4);let t='',cls='muted';
+  if(!cur){t=(sec.last4&&!f)?'Son hane '+sec.last4+' henüz hiçbir kartında kayıtlı değil, bu yüzden seçilmedi. Doğru kartı seç; seçmezsen bu bölüm atlanır.':'Bu bölüm atlanacak, hiçbir şey eklenmeyecek.';cls=(sec.last4&&!f)?'warn':'muted'}
+  else if(!sec.last4){t='Dosyada kartın son hanesi yok; seçtiğin karta eklenecek.'}
+  else if(f&&f.val===cur){t='✓ Son haneye ('+sec.last4+') göre otomatik eşleşti: '+f.label;cls='good'}
+  else if(f){t='Bu bölümün son hanesi '+sec.last4+'; bu hane "'+f.label+'" kartında kayıtlı. Emin değilsen onu seç.';cls='warn'}
+  else{t='Son hane '+sec.last4+' henüz hiçbir kartında kayıtlı değil. Doğru kartı seç; kaydedince bu haneyi o karta işlerim, bir dahaki sefere kendisi bulur.';cls='warn'}
+  el.className='note '+cls;el.textContent=t}
+function stmtUI(si){stmtMatch(si);
   const sec=stm.sections[si],sv=(($('#st_card'+si)||{}).value||'').split(':vc:')[0],card=find(S.cards,sv),box=$('#st_box'+si);if(!box)return;
   if(!card){box.hidden=true;return}box.hidden=false;
   const cut=Math.round(num(($('#st_cut'+si)||{}).value))||card.cutoff,per=stmtPeriod(card,cut,sec.lines);
@@ -653,24 +663,24 @@ function stmtUI(si){
 A.stmtType=d=>{const sec=stm.sections[+d.si];sec.type=d.v;sec.manual=true;stmtUI(+d.si)};
 function stmtReview(){
   const secs=stm.sections,n=secs.length;
-  const cardOpts=sel=>`<option value=""${sel===''?' selected':''}>Bu bölümü atla</option>`+S.cards.map(c=>`<option value="${c.id}"${sel===c.id?' selected':''}>${esc(c.name)}${c.last4?' •••• '+esc(c.last4):''}</option>`+(c.vcards||[]).map(v=>{const val=c.id+':vc:'+v.id;return `<option value="${val}"${sel===val?' selected':''}>↳ ${esc(c.name)} › ${esc(v.name)} (sanal)${v.last4?' •••• '+esc(v.last4):''}</option>`}).join('')).join('');
+  const cardOpts=sel=>`<option value=""${sel===''?' selected':''}>Bu bölümü atla</option>`+S.cards.map(c=>`<option value="${c.id}"${sel===c.id?' selected':''}>${esc(c.name)} (ana kart)${c.last4?' •••• '+esc(c.last4):''}</option>`+(c.vcards||[]).map(v=>{const val=c.id+':vc:'+v.id;return `<option value="${val}"${sel===val?' selected':''}>${esc(v.name)} (sanal kart)${v.last4?' •••• '+esc(v.last4):''}</option>`}).join('')).join('');
   const body=secs.map((sec,si)=>{
     const sel=stmtDefaultCard(sec,si,n),card=find(S.cards,sel.split(':vc:')[0]);
     const ch=sec.lines.filter(l=>l.kind==='charge'),pay=sec.lines.filter(l=>l.kind==='payment'),summary=sec.summary||{},total=sum(ch,l=>l.amt);
     const row=(l,i)=>{const dup=card&&stmtDupOf(card,l);return `<div class="srow"><input type="checkbox" id="st_c${si}_${i}" ${l.kind==='charge'?'checked':''} aria-label="Seç"><div style="min-width:0"><div style="font-weight:600;overflow-wrap:anywhere">${esc(l.desc)}</div><div class="d">${dshort(pd(l.date))}${l.inst?` · ${l.inst.k}/${l.inst.n}. taksit`:''}${l.kind==='payment'?' · ödeme / iade':''}${l.multi?' · <b class="warn">birden fazla tutar vardı</b>':''} <b class="warn" id="st_w${si}_${i}"${dup?'':' hidden'}>· zaten kayıtlı olabilir</b></div></div><div class="num" style="font-weight:700;white-space:nowrap">${l.kind==='payment'?'−':''}${fmt(l.amt)}</div>${l.kind==='charge'?`<select id="st_k${si}_${i}" aria-label="Kategori">${CATS.map(k=>`<option${k===l.cat?' selected':''}>${k}</option>`).join('')}</select>`:`<select id="st_k${si}_${i}" hidden></select>`}</div>`};
     return `<div class="card" style="margin-top:12px"><div class="t" style="font-weight:700">${sec.last4?'•••• '+esc(sec.last4)+' numaralı kart':'Ekstre'}</div>
-      <label class="f" style="margin:8px 0"><span>Bu bölüm hangi karta eklensin?</span><select id="st_card${si}">${cardOpts(sel)}</select></label>
+      <label class="f" style="margin:8px 0 2px"><span>Bu bölüm hangi karta eklensin?</span><select id="st_card${si}">${cardOpts(sel)}</select></label><div id="st_match${si}" class="note" style="margin:0 0 8px"></div>
       <div class="prev" style="margin:0 0 6px">${ch.length} harcama, toplam <b>${fmt(total)}</b>${pay.length?` · ${pay.length} ödeme/iade (${fmt(sum(pay,l=>l.amt))})`:''}${sec.skipped.length?` · ${sec.skipped.length} bonus/tutarsız satır atlandı`:''}${summary.total!=null?`<br>Ekstredeki dönem borcu: <b>${fmt(summary.total)}</b>`:''}</div>
       <div id="st_box${si}" style="border-top:1px solid var(--line);padding-top:8px;margin-bottom:6px">
         <div class="note" id="st_info${si}" style="margin:0 0 8px"></div>
         <div class="f"><span>Bu ekstre hangi dönem?</span><div class="chips" id="st_type${si}">${['last','old','open'].map(v=>`<button type="button" class="chip" data-act="stmtType" data-si="${si}" data-v="${v}">${stmtTypeLabel[v]}</button>`).join('')}</div></div>
-        <label class="f"><span>Hesap kesim günü (ayın kaçında kesilir?)</span><input id="st_cut${si}" type="text" inputmode="numeric" autocomplete="off" value="${card?card.cutoff:''}"></label>
+        <label class="f"><span>Hesap kesim günü (ayın kaçında kesilir?) · dosyadaki son işlem tarihi ${esc(dshort(pd(sec.lines.map(l=>l.date).sort().pop())))}</span><input id="st_cut${si}" type="text" inputmode="numeric" autocomplete="off" value="${card?card.cutoff:''}"></label>
         <div id="st_remBox${si}"><label class="f" style="margin-bottom:4px"><span>Bu ekstreden ödenmemiş kalan borç (₺)</span><input id="st_rem${si}" type="text" inputmode="decimal" autocomplete="off" value="${esc(nv(+total.toFixed(2)))}"></label><div class="note" style="margin:0 0 8px">Bankada ödediklerini düştükten sonra kalan tutar. Hiç ödemediysen olduğu gibi bırak, asgariyi ödediysen kalanı yaz, tamamını ödediysen 0 yaz. Bankanın dönem borcunda önceki devir veya faiz varsa onu da kapsayan toplamı yaz.</div></div>
         <label class="srow" id="st_oldBox${si}" style="grid-template-columns:auto 1fr;border-top:0"><input type="checkbox" id="st_old${si}" checked><span>Bu ekstre tamamen ödendi: yalnızca geçmiş kayıt olarak ekle, borcu değiştirme</span></label>
       </div>
       <div class="chips" style="margin-bottom:4px"><button type="button" class="chip" data-act="stmtAll" data-si="${si}" data-on="1">Harcamaların hepsi</button><button type="button" class="chip" data-act="stmtAll" data-si="${si}" data-on="0">Hiçbiri</button></div>
       ${sec.lines.map(row).join('')}</div>`}).join('');
-  openSheet({title:'Okunanlar',body:`<div class="jump"><button type="button" class="chip" data-act="sheetBottom">↓ En alta (Seçilenleri ekle)</button><button type="button" class="chip" data-act="sheetTop">↑ En üste</button></div><div class="note" style="margin-top:0">İşaretlileri eklerim. Önce her bölümün <b>hangi karta</b> ve <b>hangi ekstre dönemine</b> ait olduğunu kontrol et. Kategoriyi değiştirebilirsin. <b>Ödeme/iade satırları</b> işaretsiz gelir; ödediğin tutarı "ödenmemiş kalan borç" alanına yansıtırsın. Zaten kayıtlı görünenleri ikinci kez eklemem. Taksitli satırlar için "kalan taksitler" eklenir.</div>${body}`,
+  openSheet({title:'Okunanlar',body:`<div class="jump"><button type="button" class="chip" data-act="sheetBottom">↓ En alta (Seçilenleri ekle)</button><button type="button" class="chip" data-act="sheetTop">↑ En üste</button></div><div class="note" style="margin-top:0"><b>Ana kart ve sanal kart aynı limiti ve ekstreyi paylaşır.</b> Hangisini seçtiğin borcu ve limiti değiştirmez, yalnızca harcamaların hangi sanal kartla etiketleneceğini belirler. İşaretlileri eklerim. Önce her bölümün <b>hangi karta</b> ve <b>hangi ekstre dönemine</b> ait olduğunu kontrol et. Kategoriyi değiştirebilirsin. <b>Ödeme/iade satırları</b> işaretsiz gelir; ödediğin tutarı "ödenmemiş kalan borç" alanına yansıtırsın. Zaten kayıtlı görünenleri ikinci kez eklemem. Taksitli satırlar için "kalan taksitler" eklenir.</div>${body}`,
    saveLabel:'Seçilenleri ekle',hook(){secs.forEach((sec,si)=>stmtUI(si))},
    save(){
      let add=0,pp=0,dups=0,skipped=0;const touched=new Set(),before=S.tx.slice(),notes=[];
