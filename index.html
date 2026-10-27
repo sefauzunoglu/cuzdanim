@@ -215,7 +215,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=33;
+const KEY='cuzdanim_v1',VER=34;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -247,7 +247,7 @@ const cashTotal=()=>sum(S.accounts,accBal);
 const stmtIdx=(c,ds)=>{const d=pd(ds);return ymOf(d)+(d.getDate()>c.cutoff?1:0)};
 const stmtRange=(c,idx)=>[new Date(dateAt(idx-1,c.cutoff).getTime()+864e5),dateAt(idx,c.cutoff)];
 const stmtDue=(c,idx)=>c.due>c.cutoff?dateAt(idx,c.due):dateAt(idx+1,c.due);
-function charges(c){const out=[];S.tx.forEach(t=>{if(t.src!=='card:'+c.id)return;const n=t.inst||1,b=stmtIdx(c,t.date);
+function charges(c){const out=[];S.tx.forEach(t=>{if(t.src!=='card:'+c.id)return;const n=t.inst||1,b=stmtIdx(c,t.sd||t.date);
   for(let k=0;k<n;k++)out.push({idx:b+k,amt:t.amt/n,tx:t,k,n})});return out}
 /* BDDK: limit 100.000 ₺ ve altı %20, üstü %40. TCMB azami akdi faiz: dönem borcu 30 bin altı %3,25, 30-180 bin %3,75, 180 bin üstü %4,25 (gecikme +0,30) */
 const autoMinRate=l=>l>100000?40:20;
@@ -496,7 +496,7 @@ function openExpense(tx,preset={}){
      const p=$('#x_prev');p.className='prev';
      if(isCard){const c=find(S.cards,src.slice(5)),i=cardInfo(c),si=c.since?stmtIdx(c,c.since):-1e9,base=stmtIdx(c,V('x_date')||today());
        let settled=0;for(let k=0;k<inst;k++)if(base+k<si)settled++;
-       const eff=amt/inst*(inst-settled),oldEff=tx&&tx.src===src?tx.amt/(tx.inst||1)*((tx.inst||1)-(()=>{let n=0;const b=stmtIdx(c,tx.date);for(let k=0;k<(tx.inst||1);k++)if(b+k<si)n++;return n})()):0;
+       const eff=amt/inst*(inst-settled),oldEff=tx&&tx.src===src?tx.amt/(tx.inst||1)*((tx.inst||1)-(()=>{let n=0;const b=stmtIdx(c,tx.sd||tx.date);for(let k=0;k<(tx.inst||1);k++)if(b+k<si)n++;return n})()):0;
        p.innerHTML=amt>0?`${inst>1?`<b>${inst} × ${fmt(amt/inst)}</b> · `:''}Bu harcama ${esc(c.name)} kartının <b>${ymLabel(base)}</b> ekstresinden itibaren yansır.${settled>0?`<br><b>${settled}</b> taksit takip başlangıcından önce olduğu için ödenmiş sayılır. Borca ve limite <b>${inst-settled}</b> taksit (${fmtI(eff)}) yansır.`:''}<br>Kalan limit: ${fmtI(i.avail)} → <b>${fmtI(i.avail+oldEff-eff)}</b>`:'Tutarı yaz; ekstreye etkisini burada göreceksin.';
        if(i.avail+oldEff-eff<0&&!tx)p.classList.add('bad')}
      else{const a=find(S.accounts,src.slice(4));if(a){const b=accBal(a);p.innerHTML=amt>0?`${esc(a.name)} bakiyesi: ${fmtI(b)} → <b>${fmtI(b-amt+(tx&&tx.src===src?tx.amt:0))}</b>`:`${esc(a.name)} bakiyesi: ${fmtI(b)}`;if(b-amt<0)p.classList.add('warn')}}
@@ -552,7 +552,7 @@ function vCardDetail(){
   const c=find(S.cards,ui.card);if(!c){ui.view='cards';return vCards()}
   const i=cardInfo(c),ch=i.ch;
   const grp=[i.cur,i.cur-1,i.cur-2].map(idx=>({idx,items:ch.filter(x=>x.idx===idx).sort((a,b)=>pd(b.tx.date)-pd(a.tx.date))}));
-  const act=S.tx.filter(t=>t.src==='card:'+c.id&&t.inst>1).map(t=>{const b=stmtIdx(c,t.date),paid=Math.max(0,Math.min(t.inst,i.cur-b+1));return {t,left:t.inst-paid,paid}}).filter(x=>x.left>0);
+  const act=S.tx.filter(t=>t.src==='card:'+c.id&&t.inst>1).map(t=>{const b=stmtIdx(c,t.sd||t.date),paid=Math.max(0,Math.min(t.inst,i.cur-b+1));return {t,left:t.inst-paid,paid}}).filter(x=>x.left>0);
   const row=x=>`<button class="row" data-act="editTx" data-id="${x.tx.id}">${catLead(x.tx.cat)}<div class="mid"><div class="t">${esc(x.tx.note||x.tx.cat)}</div><div class="s">${dshort(pd(x.tx.date))} · ${x.tx.cat}${vcName(x.tx)?' · '+esc(vcName(x.tx)):''}${x.n>1?` · ${x.k+1}/${x.n}. taksit`:''}</div></div><div class="amt num">${fmt(x.amt)}</div></button>`;
   const catSum={};ch.filter(x=>x.idx===i.cur).forEach(x=>catSum[x.tx.cat]=(catSum[x.tx.cat]||0)+x.amt);
   const [a,b]=stmtRange(c,i.cur);
@@ -560,7 +560,7 @@ function vCardDetail(){
   <div class="cardtile"><div class="cn"><span>Güncel borç</span><span class="num">${fmtI(i.currentDebt)}</span></div><div style="margin:10px 0 2px">${barPct(i.util)}</div><div style="font-size:12px;opacity:.7" class="num">Limit ${fmtI(c.limit)} · Kullanılan ${fmtI(i.used)} · Kalan ${fmtI(i.avail)}</div>
    <div class="g"><div><span>Kesilen ekstre (son ödeme ${dshort(i.due)})</span><b class="num">${fmtI(i.closedDebt)}</b></div><div><span>Tahmini asgari (%${i.minRate})</span><b class="num">${fmtI(i.min)}</b></div><div><span>Açık dönem harcaması</span><b class="num">${fmtI(i.openDebt)}</b></div><div><span>Kalan taksitler</span><b class="num">${fmtI(i.future)}</b></div></div></div>
   <div class="btns"><button class="btn pri" data-act="payCard" data-id="${c.id}">Kart borcu öde</button><button class="btn" data-act="newOn" data-id="${c.id}">Bu karta harcama</button></div>
-  <div class="btns" style="margin-top:8px"><button class="btn" data-act="stmtOpen" data-id="${c.id}">Ekstreden içe aktar (Excel, PDF veya metin)</button></div>
+  <div class="btns" style="margin-top:8px"><button class="btn" data-act="syOpen" data-id="${c.id}">Bankadan güncelle (Excel)</button></div>
   ${(c.vcards||[]).length?`<section><h2>Sanal kartlar</h2><div class="card">${c.vcards.map((v,k)=>{const cur=ch.filter(x=>x.idx===i.cur&&x.tx.vc===v.id),prev=ch.filter(x=>x.idx===i.cur-1&&x.tx.vc===v.id);return `<div class="row">${av(v.name)}<div class="mid"><div class="t">${esc(v.name)}</div><div class="s">${v.last4?'•••• '+esc(v.last4)+' · ':''}açık dönem ${fmtI(sum(cur,x=>x.amt))} · önceki ekstre ${fmtI(sum(prev,x=>x.amt))}</div></div><div class="amt num">${fmtI(sum(ch.filter(x=>x.tx.vc===v.id&&x.idx<=i.cur),x=>x.amt))}<small>toplam</small></div></div>`}).join('')}</div><div class="note">Sanal kartların harcamaları bu kartın borcuna ve limitine dahildir; burada ayrıca gruplanır.</div></section>`:''}
   <section><h2>Bankayla karşılaştır</h2><div class="card">
    <div class="note" style="margin:0 0 10px">Bankanın uygulamasında kartının <b>Ekstre</b>, <b>Dönem İçi</b> ve <b>Gelecek Dönem</b> ekranlarındaki tutarları yaz. Hangi kalemin farklı olduğunu satır satır göstereyim. Boş bıraktıkların karşılaştırılmaz.</div>
@@ -600,13 +600,11 @@ function editCard(d){const c=d&&d.id?find(S.cards,d.id):null;
   <div class="note" id="c_info"></div>
   ${fld('c_last4','Kartın son 4 hanesi (isteğe bağlı, Excel ekstresini eşleştirmek için)',c?c.last4||'':'',{ph:'örn. 2016'})}
   <div class="f"><span>Sanal kartlar (bu kartın limitini ve ekstresini paylaşır)</span><div id="c_vlist">${vcRows(c)}</div><button type="button" class="chip" data-act="vcAdd">+ Sanal kart ekle</button></div>
-  ${fld('c_open','Son ekstreden ödenmemiş kalan borç (₺)',c?nv(c.openDebt):'',{t:'num',ph:'Ödediysen 0'})}
-  ${fld('c_since','Bu uygulamayı bu karta ne zaman kullanmaya başladın?',c?c.since:today(),{t:'date'})}
-  <div class="note"><b>Ödenmemiş kalan borç:</b> bankada son kesilen ekstreden hâlâ ödemen gereken tutar (ekstre eksi ödediklerin). Tamamen ödediysen 0 yaz. Henüz kesilmemiş harcamaları buraya yazma, + ile ekle.<br><b>Başlama tarihi:</b> çoğu zaman bugün. Bu tarihten önceki ekstreler bitmiş sayılır, eski harcamaları girmen gerekmez. Eski taksitli alışverişleri gerçek tarihleriyle girebilirsin; geçmiş taksitler borca eklenmez, kalanlar eklenir.</div>
+  <div class="note">Kartın borcunu ve harcamalarını eklemek için kartı kaydettikten sonra kart ayrıntısındaki <b>Bankadan güncelle</b> düğmesini kullan.</div>
   `,
   hook(){showIf('c_min',V('c_mina')==='0');showIf('c_rate',V('c_ratea')==='0');const l=N('c_limit');$('#c_info').innerHTML=(V('c_mina')==='1'?`Asgari oran limitine göre <b>%${autoMinRate(l)}</b> (limit 100.000 ₺ ve altı %20, üstü %40). `:'')+(V('c_ratea')==='1'?`Aylık faiz dönem borcuna göre otomatik: 30 bin ₺ altı %3,25, 30-180 bin ₺ %3,75, üstü %4,25. Bunlar yasal azami oranlardır; bankan daha düşük uyguluyorsa Elle gir seç.`:'')},
   save(){const n=V('c_name').trim(),cut=Math.round(N('c_cut')),due=Math.round(N('c_due'));if(!n||!(cut>=1&&cut<=31)||!(due>=1&&due<=31)){toast('Ad, kesim ve son ödeme günü gerekli');return false}
-   const o={name:n,limit:N('c_limit'),cutoff:cut,due,since:V('c_since')||today(),last4:V('c_last4').replace(/\D/g,'').slice(-4),minAuto:V('c_mina')!=='0',minRate:N('c_min')||20,rateAuto:V('c_ratea')!=='0',rate:N('c_rate'),openDebt:N('c_open')};
+   const o={name:n,limit:N('c_limit'),cutoff:cut,due,since:c?c.since:today(),last4:V('c_last4').replace(/\D/g,'').slice(-4),minAuto:V('c_mina')!=='0',minRate:N('c_min')||20,rateAuto:V('c_ratea')!=='0',rate:N('c_rate'),openDebt:c?(+c.openDebt||0):0};
    const oldIds=((c&&c.vcards)||[]).map(v=>v.id),vcs=[];
    $$('#c_vlist [data-vrow]').forEach((r,i)=>{const nm=(($('#c_vn'+i)||{}).value||'').trim();if(!nm)return;vcs.push({id:r.dataset.vrow||uid(),name:nm,last4:((($('#c_vl'+i)||{}).value)||'').replace(/\D/g,'').slice(-4)})});
    o.vcards=vcs;
@@ -646,6 +644,61 @@ A.stmtOpen=d=>{const c=find(S.cards,d.id);if(!c)return;stm={card:c.id,sections:n
    saveLabel:'Metni oku',save(){const t=($('#st_txt')||{}).value||'';if(!t.trim()){toast('Önce dosya seç veya metni yapıştır');return false}
      const r=Stmt.parseStatement(t);if(!r.lines.length){toast('Harcama satırı bulunamadı');return false}
      stm.sections=[{last4:'',title:'',lines:r.lines,skipped:[],summary:r.summary}];setTimeout(stmtReview,0);return true}})};
+/* ============ bankadan güncelle: dönem içi / ekstre Excel'i ============ */
+let sy=null;
+const syKind=rows=>rows.slice(0,80).some(r=>/d[öo]nem\s*i[çc]i/i.test((r||[]).map(String).join(' ')))?'open':'last';
+const syCardOpts=c=>`<option value="${c.id}">${esc(c.name)} (ana kart)${c.last4?' •••• '+c.last4:''}</option>`+(c.vcards||[]).map(v=>`<option value="${c.id}:vc:${v.id}">${esc(v.name)} (sanal kart)${v.last4?' •••• '+v.last4:''}</option>`).join('');
+function syPlan(card,vid,kind,lines){
+  const cur=cardInfo(card).cur,key='open:'+(vid||'main'),psIso=iso(stmtRange(card,cur)[0]);
+  const drop=kind==='open'?S.tx.filter(t=>t.src==='card:'+card.id&&t.imp===key&&stmtIdx(card,t.sd||t.date)>=cur):[];
+  const pool=S.tx.filter(t=>!drop.includes(t)),add=[],skip=[];
+  lines.forEach(l=>{if(l.kind!=='charge')return;
+    if((l.inst||kind==='last')&&stmtDupOf(card,l,pool)){skip.push(l);return}
+    const o={id:uid(),cat:l.cat,src:'card:'+card.id,note:l.desc,date:l.date,inst:1,amt:l.amt};
+    if(vid)o.vc=vid;
+    if(l.inst){const left=l.inst.n-l.inst.k+1;o.inst=left;o.amt=l.amt*left;o.note=l.desc+' (kalan taksitler)'}
+    if(l.sub&&l.cat==='Araba')o.sub=l.sub;
+    if(kind==='open'){o.imp=key;if(l.date<psIso)o.sd=psIso}else o.hist=true;
+    add.push(o)});
+  return {drop,add,skip,psIso,cur}}
+function syInfo(){const el=$('#sy_info');if(!el||!sy)return;
+  if(!sy.lines){el.innerHTML='';return}
+  const sv=($('#sy_card')||{}).value||sy.card,[cid,vid]=sv.split(':vc:'),card=find(S.cards,cid);if(!card)return;
+  const p=syPlan(card,vid,sy.kind,sy.lines),tot=sum(sy.lines.filter(l=>l.kind==='charge'),l=>l.inst?l.amt:l.amt),addAmt=sum(p.add,t=>t.amt/(t.inst||1));
+  const nm=vid?(vcOf(card,vid)||{}).name+' (sanal kart)':card.name+' (ana kart)';
+  el.innerHTML=`<div class="prev"><b>${sy.lines.length} satır okundu</b> (${fmt(tot)}). Aktarılacak kart: <b>${esc(nm)}</b>.<br>Eklenecek: <b>${p.add.length}</b> satır${p.skip.length?` · zaten kayıtlı olduğu için atlanacak: ${p.skip.length}`:''}${p.drop.length?` · bu dönemden önce aktarılan ${p.drop.length} satır yenisiyle değiştirilecek`:''}.</div>`;
+  document.querySelectorAll('#sy_kind .chip').forEach(c=>c.classList.toggle('on',c.dataset.v===sy.kind))}
+document.addEventListener('change',async e=>{
+  if(e.target.id==='sy_card'){syInfo();return}
+  if(e.target.id!=='sy_file')return;const f=e.target.files[0];if(!f||!sy)return;
+  try{if(!/\.(xls|xlsx|csv)$/i.test(f.name)){toast('Excel (.xls, .xlsx veya .csv) dosyası seç');return}
+    toast('Dosya okunuyor…');const rows=await sheetToRows(f),secs=Stmt.parseTable(rows),lines=[].concat(...secs.map(x=>x.lines));
+    if(!lines.length){toast('Dosyada harcama satırı bulunamadı');return}
+    sy.lines=lines;sy.kind=syKind(rows);const l4=(secs.find(x=>x.last4)||{}).last4,m=stmtFind4(l4);
+    if(m&&$('#sy_card'))$('#sy_card').value=m.val;
+    syInfo()}catch(err){toast('Dosya okunamadı')}});
+A.syKind=d=>{if(!sy)return;sy.kind=d.v;syInfo()};
+A.syOpen=d=>{const c=find(S.cards,d.id);if(!c)return;sy={card:c.id,lines:null,kind:'open'};
+  openSheet({title:esc(c.name)+' · bankadan güncelle',body:`<div class="note" style="margin-top:0">Bankanın internet şubesinden <b>Dönem içi işlemler</b> veya <b>Ekstre</b> Excel'ini indirip seç. Dosya telefondan çıkmaz. Aynı dönemi tekrar yüklersen eski satırlar yenileriyle değiştirilir, çift sayılmaz.</div>
+   <label class="f"><span>Excel dosyası</span><input id="sy_file" type="file" accept=".xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"></label>
+   <div id="sy_info"></div>
+   <label class="f"><span>Bu dosya hangi karta ait? (ana kart ve sanal kartın dosyaları ayrıdır)</span><select id="sy_card">${syCardOpts(c)}</select></label>
+   <div class="f"><span>Dosya ne?</span><div class="chips" id="sy_kind"><button type="button" class="chip" data-act="syKind" data-v="open">Dönem içi (bu ay)</button><button type="button" class="chip" data-act="syKind" data-v="last">Kesilmiş ekstre</button></div></div>
+   <div class="note"><b>Dönem içi:</b> bu ayın harcamaları ve taksit parçaları borca ve limite işlenir. <b>Kesilmiş ekstre:</b> satırlar sadece geçmiş kaydı olarak eklenir, borcu aşağıdaki iki kutu belirler.</div>
+   <div class="f2">${fld('sy_stmt','Ekstre borcu (₺)','',{t:'num'})}${fld('sy_paid','Bu ekstreden ödediğin (₺)','',{t:'num'})}</div>
+   <div class="note" style="margin-top:0">Bankada kartın <b>Ekstre</b> sekmesinde yazan ekstre borcunu ve ne kadarını ödediğini yaz. Kalan borç ve asgari ödeme buradan hesaplanır. Değişmediyse boş bırak.</div>
+   ${fld('sy_avail','Bankadaki kullanılabilir limit (₺, kontrol için)','',{t:'num'})}`,
+   saveLabel:'Güncelle',
+   save(){if(!sy.lines){toast('Önce Excel dosyasını seç');return false}
+     const sv=$('#sy_card').value,[cid,vid]=sv.split(':vc:'),card=find(S.cards,cid);if(!card)return false;
+     const p=syPlan(card,vid,sy.kind,sy.lines);
+     S.tx=S.tx.filter(t=>!p.drop.includes(t)).concat(p.add);
+     const eb=N('sy_stmt'),od=N('sy_paid');
+     if(eb>0){const paidAll=sum(S.cardPay.filter(x=>x.card===card.id),x=>x.amt);card.openDebt=Math.max(0,eb-od)+paidAll;card.since=p.psIso}
+     const av=N('sy_avail');if(av>0)card.cmpAvail=av;
+     const inf=cardInfo(card);let msg=p.add.length+' satır eklendi'+(p.skip.length?', '+p.skip.length+' kayıtlı taksit atlandı':'');
+     if(av>0&&card.limit>0)msg+=`. Kalan limit: uygulama ${fmtI(inf.avail)}, banka ${fmtI(av)}`;
+     save();toast(msg)}})};
 /* Taksit satırı: banka her ay k/n'yi ve birkaç kuruş farklı tutarı yazar; açıklama köküyle eşleştir */
 const stmtRoot=x=>String(x||'').toUpperCase().replace(/\(KALAN TAKS[^)]*\)/g,' ').replace(/\(\d+\/\d+\)/g,' ').replace(/\s+/g,' ').trim();
 const stmtDupPred=(card,l)=>t=>{if(t.src!=='card:'+card.id)return false;const per=t.amt/(t.inst||1);
