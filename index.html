@@ -148,6 +148,8 @@ h2 button{font-size:13px;color:var(--accent);text-transform:none;letter-spacing:
 .av.cat{background:var(--surface2);color:var(--ink)}
 @supports (background:color-mix(in srgb,red 10%,transparent)){.av.cat{background:color-mix(in srgb,var(--cc) 18%,transparent);color:var(--cc)}}
 .av svg{width:20px;height:20px}
+.jump{position:sticky;top:0;z-index:5;display:flex;gap:8px;padding:6px 0 8px;margin:-4px 0 6px;background:var(--bg)}
+.jump .chip{background:var(--surface);box-shadow:var(--shadow)}
 .srow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
 .srow input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent)}
 .srow .d{font-size:12px;color:var(--muted)}.srow select{grid-column:2/4;min-height:38px;font-size:16px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);padding:0 8px}
@@ -213,7 +215,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=19;
+const KEY='cuzdanim_v1',VER=20;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -623,6 +625,8 @@ function stmtDefaultCard(sec,i,n){
   return ''}
 function stmtDupes(si){const sec=stm.sections[si],cid=(($('#st_card'+si)||{}).value||'').split(':vc:')[0],card=find(S.cards,cid);
   sec.lines.forEach((l,i)=>{const w=$('#st_w'+si+'_'+i);if(w)w.hidden=!(card&&stmtDupOf(card,l))})}
+A.sheetBottom=()=>{const e=$('#sheet');if(e)e.scrollTo({top:e.scrollHeight})};
+A.sheetTop=()=>{const e=$('#sheet');if(e)e.scrollTo({top:0})};
 A.stmtAll=d=>{const sec=stm.sections[+d.si];sec.lines.forEach((l,i)=>{const e=$('#st_c'+d.si+'_'+i);if(e)e.checked=d.on==='1'&&l.kind==='charge'})};
 function stmtReview(){
   const secs=stm.sections,n=secs.length;
@@ -636,7 +640,7 @@ function stmtReview(){
       <div class="prev" style="margin:0 0 6px">${ch.length} harcama, toplam <b>${fmt(sum(ch,l=>l.amt))}</b>${pay.length?` · ${pay.length} ödeme/iade (${fmt(sum(pay,l=>l.amt))})`:''}${sec.skipped.length?` · ${sec.skipped.length} bonus/tutarsız satır atlandı`:''}${summary.total!=null?`<br>Ekstredeki dönem borcu: <b>${fmt(summary.total)}</b>`:''}${summary.due?` · son ödeme ${dshort(pd(summary.due))}`:''}</div>
       <div class="chips" style="margin-bottom:4px"><button type="button" class="chip" data-act="stmtAll" data-si="${si}" data-on="1">Harcamaların hepsi</button><button type="button" class="chip" data-act="stmtAll" data-si="${si}" data-on="0">Hiçbiri</button></div>
       ${sec.lines.map(row).join('')}</div>`}).join('');
-  openSheet({title:'Okunanlar',body:`<div class="note" style="margin-top:0">İşaretlileri eklerim. Kategoriyi değiştirebilirsin. Her bölüm için hangi karta ait olduğunu seç; seçtiğin kartın son 4 hanesini hatırlarım. <b>Ödeme/iade satırları</b> işaretsiz gelir: bir ekstredeki ödemeler genelde önceki ekstreyi kapatır, uygulama onu bilmediği için borcu eksik gösterebilir. Zaten kayıtlı görünenleri ikinci kez eklemem. Taksitli satırlar için "kalan taksitler" eklenir.</div>${body}
+  openSheet({title:'Okunanlar',body:`<div class="jump"><button type="button" class="chip" data-act="sheetBottom">↓ En alta (Seçilenleri ekle)</button><button type="button" class="chip" data-act="sheetTop">↑ En üste</button></div><div class="note" style="margin-top:0">İşaretlileri eklerim. Kategoriyi değiştirebilirsin. Her bölüm için hangi karta ait olduğunu seç; seçtiğin kartın son 4 hanesini hatırlarım. <b>Ödeme/iade satırları</b> işaretsiz gelir: bir ekstredeki ödemeler genelde önceki ekstreyi kapatır, uygulama onu bilmediği için borcu eksik gösterebilir. Zaten kayıtlı görünenleri ikinci kez eklemem. Taksitli satırlar için "kalan taksitler" eklenir.</div>${body}
    <label class="srow" style="grid-template-columns:auto 1fr;margin-top:12px"><input type="checkbox" id="st_since" checked><span>Bu ekstre takip başlangıcımdan önce olabilir: takip başlangıcını ekstrenin başına çek ve "ödenmemiş kalan borç"u sıfırla (borç bu ekstredeki satırlardan hesaplanır)</span></label>`,
    saveLabel:'Seçilenleri ekle',save(){
      let add=0,pp=0,dups=0,skipped=0;const touched=new Set(),before=S.tx.slice();
