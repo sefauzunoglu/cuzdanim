@@ -41,6 +41,6 @@ export interface State {
   cardPay: CardPay[]; debts: Debt[]; debtPay: DebtPay[]; recurring: Recurring[];
   recPaid: Record<string, Id>; recSkip?: Record<string, 1>;
   incomeRec: IncomeRec[]; incPaid: Record<string, Id>; cars: Car[]; gun: Gun[];
-  cfg: { gold?: GoldPrices; noIcons?: boolean; goldPrice?: number };
+  cfg: { gold?: GoldPrices; noIcons?: boolean; goldPrice?: number; theme?: 'light' | 'dark' };
   meta: { demo?: boolean; lastBackup?: string };
 }

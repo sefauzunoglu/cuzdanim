@@ -1,7 +1,7 @@
 # Özellik kontrol listesi (PWA sürüm 14 → React Native)
 
 Her madde çeviri sonunda tek tek doğrulanır. **Çekirdek** = hesaplama/işlem mantığı (`src/core`), **Ekran** = React Native arayüzü.
-Durum: ✅ tamam ve test edildi · ⬜ yapılacak
+Durum: ✅ tamam · ⬜ yapılacak. Ekran ✅ = React Native'de yazıldı ve telefon boyutunda web çıktısında görsel olarak kontrol edildi; gerçek iPhone denemesi ayrı bir adım.
 
 ## Genel
 | Özellik | Çekirdek | Ekran |
@@ -17,23 +17,23 @@ Durum: ✅ tamam ve test edildi · ⬜ yapılacak
 ## Özet
 | Özellik | Çekirdek | Ekran |
 |---|---|---|
-| Toplam borç (kart + kredi/altın/diğer + kalan taksit) | ✅ | ⬜ |
-| Nakit varlık, bu ay gelir ve gider | ✅ | ⬜ |
-| Öneri motoru (ekstre günü, limit, boş para, taksit yükü, abonelik, araba tarihleri, altın, gecikme) | ✅ | ⬜ |
+| Toplam borç (kart + kredi/altın/diğer + kalan taksit) | ✅ ✅ |
+| Nakit varlık, bu ay gelir ve gider | ✅ ✅ |
+| Öneri motoru (ekstre günü, limit, boş para, taksit yükü, abonelik, araba tarihleri, altın, gecikme) | ✅ ✅ |
 | Yaklaşan 14 gün: kart ekstresi, sabit gider, gelir, borç taksiti, altın günü; dokununca öde | ✅ | ⬜ |
-| Kart mini kartları (kalan limit, doluluk) | ✅ | ⬜ |
-| Gelecek 6 ay taksit yükü grafiği | ✅ | ⬜ |
+| Kart mini kartları (kalan limit, doluluk) | ✅ ✅ |
+| Gelecek 6 ay taksit yükü grafiği | ✅ ✅ |
 
 ## Harcama
 | Özellik | Çekirdek | Ekran |
 |---|---|---|
-| Hızlı harcama ekleme: tutar, kategori, kaynak, taksit, tarih, not | ✅ | ⬜ |
-| Son harcamalardan tek dokunuşla doldurma | – | ⬜ |
-| Kart etkisi önizlemesi (ekstre ayı, kalan limit, geçmiş taksit ödenmiş sayılır) | ✅ | ⬜ |
-| Araba kategorisi: araba, tür, kilometre | ✅ | ⬜ |
-| Düzenleme ve silme | ✅ | ⬜ |
-| Ay gezgini, kaynak filtresi, güne/karta/kategoriye göre gruplama, kategori çubukları | ✅ | ⬜ |
-| Taksitli harcamanın aylara dağılımı (k/n. taksit) | ✅ | ⬜ |
+| Hızlı harcama ekleme: tutar, kategori, kaynak, taksit, tarih, not | ✅ ✅ |
+| Son harcamalardan tek dokunuşla doldurma | – ✅ |
+| Kart etkisi önizlemesi (ekstre ayı, kalan limit, geçmiş taksit ödenmiş sayılır) | ✅ ✅ |
+| Araba kategorisi: araba, tür, kilometre | ✅ ✅ |
+| Düzenleme ve silme | ✅ ✅ |
+| Ay gezgini, kaynak filtresi, güne/karta/kategoriye göre gruplama, kategori çubukları | ✅ ✅ |
+| Taksitli harcamanın aylara dağılımı (k/n. taksit) | ✅ ✅ |
 
 ## Kartlar
 | Özellik | Çekirdek | Ekran |

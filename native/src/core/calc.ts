@@ -199,3 +199,13 @@ export function freeCash(S: State) {
   const vari = vp.length ? sum(vp) / vp.length : 0;
   return { inc, fixed, ins, debtM, vari, free: inc - fixed - ins - debtM - vari };
 }
+
+/** Önümüzdeki 6 ay kartlara yansıyacak taksit tutarları. */
+export function instForecast(S: State) {
+  const cm = ymOf(clock.now());
+  const cs = S.cards.map((c) => cardInfo(S, c));
+  return [1, 2, 3, 4, 5, 6].map((k) => ({
+    ym: cm + k,
+    amt: sum(cs, (x) => sum(x.ch.filter((z) => z.idx === x.cur + k - 1 && z.n > 1), (z) => z.amt)),
+  }));
+}

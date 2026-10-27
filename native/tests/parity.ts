@@ -3,10 +3,8 @@
  * Eski uygulama gerçek tarayıcıda, saat sabitlenerek çalıştırılır; aynı durum (State) TS tarafına verilir.
  * Kullanım: PWA_HTML=/yol/index.html npx tsx tests/parity.ts
  */
-import { createRequire } from 'node:module';
 import * as core from '../src/core';
 
-const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const HTML = process.env.PWA_HTML || '/home/user/cuzdanim/index.html';
 
@@ -65,24 +63,28 @@ function diff(a: any, b: any, path = ''): string[] {
   return a === b ? [] : [`${path}: eski=${JSON.stringify(a)} yeni=${JSON.stringify(b)}`];
 }
 
-const browser = await chromium.launch();
-let failed = 0;
-for (const [y, m, d] of dates) {
-  const fixed = new Date(y, m, d, 12, 0, 0);
-  const page = await browser.newPage();
-  await page.clock.install({ time: fixed });
-  await page.goto('file://' + HTML);
-  await page.evaluate('A.demo()');
-  const state = await page.evaluate('JSON.parse(JSON.stringify(S))');
-  const oldRes = await page.evaluate(OLD_FN);
-  core.clock.now = () => new Date(fixed.getTime());
-  const S = core.migrate(state);
-  const newRes = newSummary(S);
-  const errs = diff(oldRes, newRes);
-  const label = fixed.toISOString().slice(0, 10);
-  if (errs.length) { failed++; console.log(`FARK ${label}: ${errs.length} fark`); errs.slice(0, 15).forEach((e) => console.log('  ' + e)); }
-  else console.log(`AYNI ${label}: kart=${newRes.cards.length} öneri=${newRes.advice.length} yaklaşan=${newRes.up.length} toplam borç=${newRes.totals.total}`);
-  await page.close();
+async function main() {
+  const browser = await chromium.launch();
+  let failed = 0;
+  for (const [y, m, d] of dates) {
+    const fixed = new Date(y, m, d, 12, 0, 0);
+    const page = await browser.newPage();
+    await page.clock.install({ time: fixed });
+    await page.goto('file://' + HTML);
+    await page.evaluate('A.demo()');
+    const state = await page.evaluate('JSON.parse(JSON.stringify(S))');
+    const oldRes = await page.evaluate(OLD_FN);
+    core.clock.now = () => new Date(fixed.getTime());
+    const S = core.migrate(state);
+    const newRes = newSummary(S);
+    const errs = diff(oldRes, newRes);
+    const label = fixed.toISOString().slice(0, 10);
+    if (errs.length) { failed++; console.log(`FARK ${label}: ${errs.length} fark`); errs.slice(0, 15).forEach((e) => console.log('  ' + e)); }
+    else console.log(`AYNI ${label}: kart=${newRes.cards.length} öneri=${newRes.advice.length} yaklaşan=${newRes.up.length} toplam borç=${newRes.totals.total}`);
+    await page.close();
+  }
+  await browser.close();
+  return failed;
+  
 }
-await browser.close();
-process.exit(failed ? 1 : 0);
+main().then((f) => process.exit(f ? 1 : 0));
