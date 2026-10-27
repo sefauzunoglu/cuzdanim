@@ -198,7 +198,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=31;
+const KEY='cuzdanim_v1',VER=32;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -437,22 +437,21 @@ function advice(){
   const rank={bad:0,warn:1,good:2,info:3};return o.sort((a,b)=>rank[a.l]-rank[b.l])}
 
 /* ============ harcama ekleme ============ */
-/* Bankayla limit karşılaştırması: uygulamanın kullanılan limiti ile bankanın kullandığı limit arasındaki farkı kalem kalem gösterir */
+/* Bankayla karşılaştırma: bankanın ekranındaki kalemlerle uygulamanınkileri yan yana koyar */
 function cmpHtml(c,i){
-  if(!(c.cmpAvail>0)||!(c.limit>0))return '';
-  const bankUsed=c.limit-c.cmpAvail,gap=bankUsed-i.used,O=+c.cmpOpen||0,Y=i.openDebt,miss=O>0?O-Y:0;
-  const row=(a,b,cls)=>`<div class="row" style="padding:7px 0"><div class="mid"><div class="s">${a}</div></div><div class="amt num ${cls||''}">${b}</div></div>`;
-  let h=row('Limit',fmtI(c.limit))
-   +row('Uygulamada kullanılan: kesilmiş ekstre '+fmtI(i.closedDebt)+' + açık dönem '+fmtI(Y)+' + kalan taksit '+fmtI(i.future),fmtI(i.used))
-   +row('Bankada kullanılan: limit − kullanılabilir ('+fmt(c.cmpAvail)+')',fmtI(bankUsed))
-   +row('<b>Fark</b>: bankada daha fazla kullanılmış',`<b>${fmtI(gap)}</b>`,Math.abs(gap)<1?'good':gap>0?'warn':'bad');
-  let note='';
-  if(Math.abs(gap)<1)note='Uygulama ve banka aynı limit kullanımını gösteriyor.';
-  else if(gap<0)note=`Uygulama bankadan <b>${fmtI(-gap)}</b> fazla limit kullanılmış gösteriyor. Aynı borcun iki kez sayılmış olması olası: kart eklerken yazdığın kalan borç ile içe aktardığın harcamalar, ya da aynı harcamanın hem Excel'den hem elle girilmesi. İçe aktarmada "Borcu zaten girdim, değiştirme"yi seçip aynı dosyayı yeniden yükle.`;
-  else if(O>0){const left=gap-miss;
-    note=`Bankadaki bu ay tutarı <b>${fmtI(O)}</b>, uygulamadaki açık dönem <b>${fmtI(Y)}</b> (içinde taksit parçaları var). Aradaki <b>${fmtI(miss)}</b> büyük olasılıkla uygulamaya girilmemiş harcama. Bunları girince fark yaklaşık <b>${fmtI(left)}</b> kalır${left>1?`. Kalanı faiz, ücret, provizyon ya da bankanın limiti farklı sayması olabilir (kesilmiş ekstre borcunda faiz yoksa, kart ayrıntısından "Ödenmemiş kalan borç"u bankadaki ekstre borcuyla karşılaştır)`:left<-1?'. Negatif çıkması, bankadaki tutarın taksit parçalarını zaten içerdiğini gösterir; o zaman yalnızca yeni harcamaları gir':''}.`}
-  else note=`Bankada <b>${fmtI(gap)}</b> daha fazla limit kullanılmış. Olası nedenler: bu ay henüz girmediğin harcamalar, provizyondaki tutarlar, faiz ve ücretler. Bankadaki bu ay (dönem içi) harcama tutarını da yazarsan farkı daha iyi açıklarım.`;
-  return `<div style="margin-top:8px">${h}</div><div class="prev${gap>1&&O<=0?'':''}" style="margin-top:8px">${note}</div>`}
+  const A=+c.cmpAvail||0,ST=+c.cmpStmt||0,PD=+c.cmpPaid||0,O=+c.cmpOpen||0,F=+c.cmpFuture||0,CU=Math.round(+c.cmpCut||0);
+  if(!(A>0||ST>0||O>0||F>0||CU>0))return '';
+  const row=(t,app,bank)=>{const d=bank-app,ok=Math.abs(d)<1;return `<div class="row" style="padding:8px 0"><div class="mid"><div class="t" style="white-space:normal">${t}</div><div class="s" style="white-space:normal">Uygulama ${fmtI(app)} · Banka ${fmtI(bank)}</div></div><div class="amt num ${ok?'good':'warn'}">${ok?'✓ aynı':(d>0?'+':'')+fmtI(d)}<small>${ok?'':'banka − uygulama'}</small></div></div>`};
+  let h='',notes=[];
+  if(CU>=1&&CU<=31){if(CU!==c.cutoff){h+=`<div class="prev warn" style="margin:0 0 8px">Bankada hesap kesim günü <b>${CU}</b>, uygulamada <b>${c.cutoff}</b>. Gün yanlışsa harcamalar ve taksitler yanlış ekstreye düşer. <button type="button" class="chip" data-act="cmpCut" data-id="${c.id}" data-v="${CU}">Kesim gününü ${CU} yap</button></div>`}else h+=`<div class="note" style="margin:0 0 6px">Hesap kesim günü bankayla aynı (${CU}) ✓</div>`}
+  const bankClosed=ST>0?Math.max(0,ST-PD):null;
+  if(bankClosed!=null){h+=row('Kesilmiş ekstreden kalan borç (ekstre borcu − ödediğin)',i.closedDebt,bankClosed);
+    if(Math.abs(bankClosed-i.closedDebt)>=1)notes.push(`<b>Kesilmiş borç:</b> uygulamadaki ${fmtI(i.closedDebt)} yerine ${fmtI(bankClosed)} olmalı. Kartı aç → <b>Ekstreden içe aktar</b> → <b>"Borcu bu ekstreden hesapla"</b> → "Ekstrenin toplam borcu" ${fmt(ST)}, "Kısmen ödedim" ${fmt(PD)}. Faiz ve devreden borç bankanın ekstre borcunun içinde olduğundan böylece uygulamaya girmiş olur.`)}
+  if(O>0){h+=row('Açık dönem (dönem içi harcama, provizyon dahil)',i.openDebt,O);const d=O-i.openDebt;if(d>=1)notes.push(`<b>Dönem içi:</b> bankada ${fmtI(d)} fazla görünüyor. Bu ay yaptığın harcamaları girmemiş olabilirsin (bankanın "Dönem İçi" ekranında liste var). Dönem içi tutarda taksit parçaları da var, onları ayrıca sayma.`);else if(d<=-1)notes.push(`<b>Dönem içi:</b> uygulama bankadan ${fmtI(-d)} fazla gösteriyor. Aynı harcama iki kez girilmiş veya hesap kesim günü yanlış olabilir.`)}
+  if(F>0){h+=row('Gelecek dönem taksitleri (ana + sanal kart toplamı)',i.future,F);const d=F-i.future;if(d>=1)notes.push(`<b>Gelecek taksit:</b> bankada ${fmtI(d)} fazla. Bankanın "Gelecek Dönem" ekranındaki taksitlerin hepsi (sanal kartın taksitleri dahil) uygulamada olmalı. Eksik olanları + ile "taksit" seçerek gir; ilk parçanın tarihini bankadaki gibi yaz.`);else if(d<=-1)notes.push(`<b>Gelecek taksit:</b> uygulama ${fmtI(-d)} fazla gösteriyor; hesap kesim günü yanlış olabilir.`)}
+  if(A>0&&c.limit>0){const bu=c.limit-A;h+=row('Kullanılan limit (limit − kullanılabilir '+fmt(A)+')',i.used,bu);
+    if(bankClosed!=null&&O>0&&F>0){const comp=bankClosed+O+F,res=bu-comp;notes.push(res>=1?`<b>Bankanın kendi içinde açıklanamayan kısım:</b> ${fmtI(res)}. Kesilmiş kalan + dönem içi + gelecek taksit = ${fmtI(comp)}, bankada kullanılan ${fmtI(bu)}. Aradaki fark çoğunlukla <b>sanal kartın</b> dönem içi veya gelecek dönem tutarlarıdır. Sanal kartın da dönem içi ve gelecek dönem ekranlarına bak.`:res<=-1?`<b>Bankanın kendi içinde:</b> kalemlerin toplamı kullanılan limitten ${fmtI(-res)} fazla. Dönem içi tutara taksit parçaları zaten dahilse gelecek dönem toplamıyla çakışmıyordur; sanal kartın tutarlarını bu toplamlara iki kez eklemediğinden emin ol.`:'Bankanın kalemleri kullanılan limitle tam örtüşüyor ✓')}}
+  return `<div style="margin-top:10px">${h}</div>${notes.length?`<div class="prev" style="margin-top:8px">${notes.join('<br><br>')}</div>`:''}`}
 const vcOf=(c,id)=>((c&&c.vcards)||[]).find(v=>v.id===id);
 const vcName=t=>{if(!t.vc||!String(t.src).startsWith('card:'))return '';const v=vcOf(find(S.cards,t.src.slice(5)),t.vc);return v?v.name:''};
 const srcOptsX=()=>{const o=[];S.cards.forEach(c=>{o.push(['card:'+c.id,c.name]);(c.vcards||[]).forEach(v=>o.push(['vcard:'+c.id+':'+v.id,'↳ '+v.name+' (sanal)']))});S.accounts.forEach(a=>o.push(['acc:'+a.id,a.name]));return o};
@@ -546,10 +545,12 @@ function vCardDetail(){
   <div class="btns"><button class="btn pri" data-act="payCard" data-id="${c.id}">Kart borcu öde</button><button class="btn" data-act="newOn" data-id="${c.id}">Bu karta harcama</button></div>
   <div class="btns" style="margin-top:8px"><button class="btn" data-act="stmtOpen" data-id="${c.id}">Ekstreden içe aktar (Excel, PDF veya metin)</button></div>
   ${(c.vcards||[]).length?`<section><h2>Sanal kartlar</h2><div class="card">${c.vcards.map((v,k)=>{const cur=ch.filter(x=>x.idx===i.cur&&x.tx.vc===v.id),prev=ch.filter(x=>x.idx===i.cur-1&&x.tx.vc===v.id);return `<div class="row">${av(v.name)}<div class="mid"><div class="t">${esc(v.name)}</div><div class="s">${v.last4?'•••• '+esc(v.last4)+' · ':''}açık dönem ${fmtI(sum(cur,x=>x.amt))} · önceki ekstre ${fmtI(sum(prev,x=>x.amt))}</div></div><div class="amt num">${fmtI(sum(ch.filter(x=>x.tx.vc===v.id&&x.idx<=i.cur),x=>x.amt))}<small>toplam</small></div></div>`}).join('')}</div><div class="note">Sanal kartların harcamaları bu kartın borcuna ve limitine dahildir; burada ayrıca gruplanır.</div></section>`:''}
-  <section><h2>Bankayla limit karşılaştırması</h2><div class="card">
-   <div class="note" style="margin:0 0 10px">Bankanın uygulamasında kartının <b>kullanılabilir limit</b> tutarını ve (varsa) <b>bu ay / dönem içi harcama</b> toplamını yaz. Farkın nereden geldiğini satır satır gösteririm.</div>
-   ${fld('cmp_avail','Bankadaki kullanılabilir limit (₺)',c.cmpAvail?nv(c.cmpAvail):'',{t:'num'})}
-   ${fld('cmp_open','Bankadaki bu ay (dönem içi) harcama, provizyon dahil (₺, isteğe bağlı)',c.cmpOpen?nv(c.cmpOpen):'',{t:'num'})}
+  <section><h2>Bankayla karşılaştır</h2><div class="card">
+   <div class="note" style="margin:0 0 10px">Bankanın uygulamasında kartının <b>Ekstre</b>, <b>Dönem İçi</b> ve <b>Gelecek Dönem</b> ekranlarındaki tutarları yaz. Hangi kalemin farklı olduğunu satır satır göstereyim. Boş bıraktıkların karşılaştırılmaz.</div>
+   ${fld('cmp_cut','Bankadaki ekstre kesim günü (ayın kaçı)',c.cmpCut?String(c.cmpCut):'',{t:'num',ph:'örn. 28'})}
+   <div class="f2">${fld('cmp_stmt','Ekstre borcu (₺)',c.cmpStmt?nv(c.cmpStmt):'',{t:'num'})}${fld('cmp_paid','Bu ekstreden ödediğin (₺)',c.cmpPaid?nv(c.cmpPaid):'',{t:'num'})}</div>
+   <div class="f2">${fld('cmp_open','Dönem içi toplamı (₺)',c.cmpOpen?nv(c.cmpOpen):'',{t:'num'})}${fld('cmp_future','Gelecek dönem toplamı (₺)',c.cmpFuture?nv(c.cmpFuture):'',{t:'num'})}</div>
+   ${fld('cmp_avail','Kullanılabilir limit (₺)',c.cmpAvail?nv(c.cmpAvail):'',{t:'num'})}
    <button class="btn sm" data-act="cmpSave" data-id="${c.id}">Karşılaştır</button>${cmpHtml(c,i)}</div></section>
   <section><h2>Tahminler</h2><div class="card"><div class="row"><div class="mid"><div class="t">Sonraki ekstre tahmini</div><div class="s">Açık dönem ${fmtI(i.openDebt)}${i.recOnCard?` + ödenmemiş sabit gider ${fmtI(i.recOnCard)}`:''}</div></div><div class="amt num">${fmtI(i.nextEst)}<small>asgari ~${fmtI(i.nextMin)}</small></div></div>
   <div class="row"><div class="mid"><div class="t">Dönem içi harcama</div><div class="s">${dshort(a)} – ${dshort(b)}</div></div><div class="amt num">${fmtI(sum(ch.filter(x=>x.idx===i.cur),x=>x.amt))}</div></div></div></section>
@@ -562,7 +563,8 @@ function vCardDetail(){
   ${act.length?`<section><h2>Devam eden taksitler</h2><div class="card">${act.map(x=>`<button class="row" data-act="editTx" data-id="${x.t.id}"><div class="mid"><div class="t">${esc(x.t.note||x.t.cat)}</div><div class="s">${x.paid}/${x.t.inst} ödendi · kalan ${x.left} ay</div>${barPct(x.paid/x.t.inst)}</div><div class="amt num">${fmtI(x.t.amt/x.t.inst)}<small>kalan ${fmtI(x.t.amt/x.t.inst*x.left)}</small></div></button>`).join('')}</div></section>`:''}
   ${grp.map((g,gi)=>{if(!g.items.length&&gi)return '';const [s,e]=stmtRange(c,g.idx);return `<section><h2>${gi===0?'Açık dönem':gi===1?'Önceki ekstre':'Daha önceki'} · ${dshort(s)} – ${dshort(e)}<span class="num">${fmtI(sum(g.items,x=>x.amt))}</span></h2><div class="card">${g.items.length?g.items.map(row).join(''):empty('Harcama yok','')}</div></section>`}).join('')}
   ${S.cardPay.some(p=>p.card===c.id)?`<section><h2>Ödemeler</h2><div class="card">${S.cardPay.filter(p=>p.card===c.id).slice().reverse().slice(0,8).map(p=>`<button class="row" data-act="delPay" data-id="${p.id}"><div class="mid"><div class="t">Kart ödemesi</div><div class="s">${dshort(pd(p.date))}${p.from?' · '+esc(srcName('acc:'+p.from)):''}${p.note?' · '+esc(p.note):''}</div></div><div class="amt num good">−${fmtI(p.amt)}</div></button>`).join('')}</div></section>`:''}`}
-A.cmpSave=d=>{const c=find(S.cards,d.id);if(!c)return;c.cmpAvail=N('cmp_avail');c.cmpOpen=N('cmp_open');persist();render();toast('Karşılaştırma güncellendi')};
+A.cmpSave=d=>{const c=find(S.cards,d.id);if(!c)return;c.cmpAvail=N('cmp_avail');c.cmpOpen=N('cmp_open');c.cmpStmt=N('cmp_stmt');c.cmpPaid=N('cmp_paid');c.cmpFuture=N('cmp_future');c.cmpCut=Math.round(N('cmp_cut'))||0;persist();render();toast('Karşılaştırma güncellendi')};
+A.cmpCut=d=>{const c=find(S.cards,d.id);if(!c)return;c.cutoff=+d.v;persist();render();toast('Hesap kesim günü '+d.v+' yapıldı')};
 A.newOn=d=>openExpense(null,{src:'card:'+d.id});
 A.delPay=d=>{const p=find(S.cardPay,d.id);confirmSheet('Ödemeyi sil',`${fmt(p.amt)} tutarındaki kart ödemesi silinsin mi?`,()=>{S.cardPay.splice(S.cardPay.indexOf(p),1);save()})};
 function payCard(id){const c=find(S.cards,id),i=cardInfo(c);
