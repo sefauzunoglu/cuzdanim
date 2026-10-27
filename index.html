@@ -215,7 +215,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=23;
+const KEY='cuzdanim_v1',VER=24;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -659,7 +659,16 @@ function stmtUI(si){stmtMatch(si);
   $$('#st_type'+si+' .chip').forEach(c=>c.classList.toggle('on',c.dataset.v===sec.type));
   const info=$('#st_info'+si);
   info.innerHTML=`Bu bölüm <b>${esc(per.label)} ekstresi</b> gibi görünüyor (${per.range}); ${per.state==='open'?'henüz kesilmemiş':'kesilmiş'}${per.state==='last'?`, son ödeme ${dshort(per.due)}`:''}.${per.multi?`<br><b class="warn">Satırlar iki farklı ekstreye düşüyor: hesap kesim günü yanlış olabilir. Aşağıdan düzelt.</b>`:''}`;
-  $('#st_remBox'+si).hidden=sec.type!=='last';$('#st_oldBox'+si).hidden=sec.type!=='old'}
+  $('#st_remBox'+si).hidden=sec.type!=='last';$('#st_oldBox'+si).hidden=sec.type!=='old';
+  if(!sec.pay)sec.pay='none';
+  $$('#st_pay'+si+' .chip').forEach(c=>c.classList.toggle('on',c.dataset.v===sec.pay));
+  $('#st_partBox'+si).hidden=sec.pay!=='part';
+  const tot=sum(sec.lines.filter(l=>l.kind==='charge'),l=>l.amt);
+  $('#st_payNote'+si).textContent=sec.pay==='none'?`Ekstredeki ${fmt(tot)} ödenmemiş borç olarak kalır.`:sec.pay==='all'?'Bu ekstreden borcun kalmaz (0 ₺).':'Bankanın uygulamasında ödemeden sonra görünen kalan ekstre borcunu yaz. Örneğin asgariyi ödediysen kalan tutarı.';
+  const last=sec.lines.map(l=>l.date).sort().pop(),ld=last?pd(last).getDate():0,cn=$('#st_cutNote'+si);
+  if(cn)cn.innerHTML=`Bankanın uygulamasında "hesap kesim tarihi" olarak yazar. Bu dosyadaki son işlem <b>${last?dshort(pd(last)):''}</b> olduğuna göre kesim günü büyük olasılıkla <b>${ld}</b>.${cut!==ld?` <button type="button" class="chip" data-act="stmtCut" data-si="${si}" data-v="${ld}">${ld} yap</button>`:' ✓'}`}
+A.stmtPay=d=>{const sec=stm.sections[+d.si];sec.pay=d.v;stmtUI(+d.si)};
+A.stmtCut=d=>{const e=$('#st_cut'+d.si);if(e)e.value=d.v;stmtUI(+d.si)};
 A.stmtType=d=>{const sec=stm.sections[+d.si];sec.type=d.v;sec.manual=true;stmtUI(+d.si)};
 function stmtReview(){
   const secs=stm.sections,n=secs.length;
@@ -674,8 +683,11 @@ function stmtReview(){
       <div id="st_box${si}" style="border-top:1px solid var(--line);padding-top:8px;margin-bottom:6px">
         <div class="note" id="st_info${si}" style="margin:0 0 8px"></div>
         <div class="f"><span>Bu ekstre hangi dönem?</span><div class="chips" id="st_type${si}">${['last','old','open'].map(v=>`<button type="button" class="chip" data-act="stmtType" data-si="${si}" data-v="${v}">${stmtTypeLabel[v]}</button>`).join('')}</div></div>
-        <label class="f"><span>Hesap kesim günü (ayın kaçında kesilir?) · dosyadaki son işlem tarihi ${esc(dshort(pd(sec.lines.map(l=>l.date).sort().pop())))}</span><input id="st_cut${si}" type="text" inputmode="numeric" autocomplete="off" value="${card?card.cutoff:''}"></label>
-        <div id="st_remBox${si}"><label class="f" style="margin-bottom:4px"><span>Bu ekstreden ödenmemiş kalan borç (₺)</span><input id="st_rem${si}" type="text" inputmode="decimal" autocomplete="off" value="${esc(nv(+total.toFixed(2)))}"></label><div class="note" style="margin:0 0 8px">Bankada ödediklerini düştükten sonra kalan tutar. Hiç ödemediysen olduğu gibi bırak, asgariyi ödediysen kalanı yaz, tamamını ödediysen 0 yaz. Bankanın dönem borcunda önceki devir veya faiz varsa onu da kapsayan toplamı yaz.</div></div>
+        <label class="f" style="margin-bottom:4px"><span>Hesap kesim günü: ekstre ayın kaçında kesilir?</span><input id="st_cut${si}" type="text" inputmode="numeric" autocomplete="off" value="${card?card.cutoff:''}"></label>
+        <div class="note" id="st_cutNote${si}" style="margin:0 0 10px"></div>
+        <div id="st_remBox${si}"><div class="f"><span>Bu ekstreyi bankaya ödedin mi?</span><div class="chips" id="st_pay${si}">${[['none','Hiç ödemedim'],['part','Kısmen ödedim'],['all','Tamamını ödedim']].map(([v,l])=>`<button type="button" class="chip" data-act="stmtPay" data-si="${si}" data-v="${v}">${l}</button>`).join('')}</div></div>
+          <label class="f" id="st_partBox${si}" style="margin-bottom:4px"><span>Ödemeden sonra kalan borç (₺)</span><input id="st_rem${si}" type="text" inputmode="decimal" autocomplete="off" value="${esc(nv(+total.toFixed(2)))}"></label>
+          <div class="note" id="st_payNote${si}" style="margin:0 0 8px"></div></div>
         <label class="srow" id="st_oldBox${si}" style="grid-template-columns:auto 1fr;border-top:0"><input type="checkbox" id="st_old${si}" checked><span>Bu ekstre tamamen ödendi: yalnızca geçmiş kayıt olarak ekle, borcu değiştirme</span></label>
       </div>
       <div class="chips" style="margin-bottom:4px"><button type="button" class="chip" data-act="stmtAll" data-si="${si}" data-on="1">Harcamaların hepsi</button><button type="button" class="chip" data-act="stmtAll" data-si="${si}" data-on="0">Hiçbiri</button></div>
@@ -699,7 +711,7 @@ function stmtReview(){
        if(dates.length){const first=dates.slice().sort()[0];
          if(type!=='old'&&(!card.since||stmtIdx(card,first)<stmtIdx(card,card.since)))card.since=first}
        if(type==='last'){
-         const total=sum(sec.lines.filter(l=>l.kind==='charge'),l=>l.amt),remRaw=($('#st_rem'+si)||{}).value,rem=remRaw&&remRaw.trim()!==''?num(remRaw):total;
+         const total=sum(sec.lines.filter(l=>l.kind==='charge'),l=>l.amt),remRaw=($('#st_rem'+si)||{}).value,mode=sec.pay||'none',rem=mode==='all'?0:mode==='part'?(remRaw&&remRaw.trim()!==''?num(remRaw):total):total;
          card.openDebt=0;const diff=rem-cardInfo(card).closedDebt;
          if(diff>.5)card.openDebt=diff;else if(diff<-.5)S.cardPay.push({id:uid(),card:card.id,amt:-diff,from:'',date:today(),note:'Ekstre içe aktarımı: ödenen tutar'});
          notes.push(card.name+' kesilmiş ekstre borcu '+fmtI(cardInfo(card).closedDebt))}
