@@ -198,7 +198,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=29;
+const KEY='cuzdanim_v1',VER=30;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -605,7 +605,8 @@ A.stmtOpen=d=>{const c=find(S.cards,d.id);if(!c)return;stm={card:c.id,sections:n
    saveLabel:'Metni oku',save(){const t=($('#st_txt')||{}).value||'';if(!t.trim()){toast('Önce dosya seç veya metni yapıştır');return false}
      const r=Stmt.parseStatement(t);if(!r.lines.length){toast('Harcama satırı bulunamadı');return false}
      stm.sections=[{last4:'',title:'',lines:r.lines,skipped:[],summary:r.summary}];setTimeout(stmtReview,0);return true}})};
-const stmtDupOf=(card,l,pool)=>(pool||S.tx).some(t=>t.src==='card:'+card.id&&Math.abs((t.amt/(t.inst||1))-l.amt)<.01&&(t.date===l.date||(l.inst&&t.inst>1)));
+const stmtDupPred=(card,l)=>t=>t.src==='card:'+card.id&&Math.abs((t.amt/(t.inst||1))-l.amt)<.01&&(t.date===l.date||(l.inst&&t.inst>1));
+const stmtDupOf=(card,l,pool)=>(pool||S.tx).some(stmtDupPred(card,l));
 function stmtDefaultCard(sec,i,n){
   if(sec.last4){for(const c of S.cards){if(c.last4===sec.last4)return c.id;const v=(c.vcards||[]).find(v=>v.last4===sec.last4);if(v)return c.id+':vc:'+v.id}}
   if(n===1)return stm.card;
@@ -701,14 +702,14 @@ function stmtReview(){
   openSheet({title:'Okunanlar',body:`<div class="jump"><button type="button" class="chip" data-act="sheetBottom">↓ En alta (Seçilenleri ekle)</button><button type="button" class="chip" data-act="sheetTop">↑ En üste</button></div><div class="note" style="margin-top:0"><b>Ana kart ve sanal kart aynı limiti ve ekstreyi paylaşır.</b> Hangisini seçtiğin borcu ve limiti değiştirmez, yalnızca harcamaların hangi sanal kartla etiketleneceğini belirler. İşaretlileri eklerim. Önce her bölümün <b>hangi karta</b> ve <b>hangi ekstre dönemine</b> ait olduğunu kontrol et. Kategoriyi değiştirebilirsin. <b>Ödeme/iade satırları</b> işaretsiz gelir; ödediğin tutarı "ödenmemiş kalan borç" alanına yansıtırsın. Zaten kayıtlı görünenleri ikinci kez eklemem. Taksitli satırlar için "kalan taksitler" eklenir.</div>${body}`,
    saveLabel:'Seçilenleri ekle',hook(){secs.forEach((sec,si)=>stmtUI(si));stmtPayBlocks()},
    save(){
-     let add=0,pp=0,dups=0,skipped=0;const touched=new Set(),before=S.tx.slice(),notes=[],lastT={};
+     let add=0,pp=0,dups=0,skipped=0,marked=0;const touched=new Set(),before=S.tx.slice(),notes=[],lastT={};
      secs.forEach((sec,si)=>{const sv=($('#st_card'+si)||{}).value||'',[cid,vid]=sv.split(':vc:'),card=find(S.cards,cid);if(!card){skipped++;return}
        const cut=Math.round(num(($('#st_cut'+si)||{}).value))||card.cutoff,type=sec.type||'last',dates=[];
        if(cut>=1&&cut<=31&&cut!==card.cutoff){card.cutoff=cut;notes.push('hesap kesim günü '+cut+' yapıldı')}
        const cpst=(stm.cp&&stm.cp[card.id])||{},keepDebt=type==='last'&&cpst.how==='keep',oldPaid=type==='old'&&($('#st_old'+si)||{}).checked;
        sec.lines.forEach((l,i)=>{const on=$('#st_c'+si+'_'+i);if(!on||!on.checked)return;
          if(l.kind==='payment'){S.cardPay.push({id:uid(),card:card.id,amt:l.amt,from:'',date:l.date});pp++;return}
-         if(stmtDupOf(card,l,before)){dups++;return}
+         if(stmtDupOf(card,l,before)){dups++;if(keepDebt||oldPaid){const pr=stmtDupPred(card,l),ex=before.find(t=>!t.hist&&pr(t));if(ex){ex.hist=true;marked++}}return}
          const cat=($('#st_k'+si+'_'+i)||{}).value||l.cat,o={id:uid(),cat,src:'card:'+card.id,note:l.desc,date:l.date};if(vid)o.vc=vid;if(keepDebt||oldPaid)o.hist=true;
          if(cat==='Araba'&&l.sub&&l.cat==='Araba')o.sub=l.sub;
          if(l.inst){const left=l.inst.n-l.inst.k+1;o.inst=left;o.amt=l.amt*left;o.note=l.desc+' (kalan taksitler)'}else{o.inst=1;o.amt=l.amt}
@@ -726,7 +727,7 @@ function stmtReview(){
        if(diff>.5)card.openDebt+=diff;else if(diff<-.5)S.cardPay.push({id:uid(),card:card.id,amt:-diff,from:'',date:today(),note:'Ekstre içe aktarımı: ödenen tutar'});
        notes.push(card.name+' kesilmiş ekstre borcu '+fmtI(cardInfo(card).closedDebt))});
      persist();render();
-     toast(`${add} harcama${pp?`, ${pp} ödeme`:''} eklendi${dups?` · ${dups} tekrar atlandı`:''}${skipped?` · ${skipped} bölüm atlandı`:''}${notes.length?' · '+notes.join(' · '):''}`)}})}
+     toast(`${add} harcama${pp?`, ${pp} ödeme`:''} eklendi${dups?` · ${dups} tekrar atlandı`:''}${marked?` · ${marked} eski kayıt geçmiş kayıt yapıldı`:''}${skipped?` · ${skipped} bölüm atlandı`:''}${notes.length?' · '+notes.join(' · '):''}`)}})}
 
 /* ============ borçlar ============ */
 function vDebts(){
