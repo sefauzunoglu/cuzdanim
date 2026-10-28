@@ -215,7 +215,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=34;
+const KEY='cuzdanim_v1',VER=35;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -684,16 +684,16 @@ A.syOpen=d=>{const c=find(S.cards,d.id);if(!c)return;sy={card:c.id,lines:null,ki
    <div id="sy_info"></div>
    <label class="f"><span>Bu dosya hangi karta ait? (ana kart ve sanal kartın dosyaları ayrıdır)</span><select id="sy_card">${syCardOpts(c)}</select></label>
    <div class="f"><span>Dosya ne?</span><div class="chips" id="sy_kind"><button type="button" class="chip" data-act="syKind" data-v="open">Dönem içi (bu ay)</button><button type="button" class="chip" data-act="syKind" data-v="last">Kesilmiş ekstre</button></div></div>
-   <div class="note"><b>Dönem içi:</b> bu ayın harcamaları ve taksit parçaları borca ve limite işlenir. <b>Kesilmiş ekstre:</b> satırlar sadece geçmiş kaydı olarak eklenir, borcu aşağıdaki iki kutu belirler.</div>
-   <div class="f2">${fld('sy_stmt','Ekstre borcu (₺)','',{t:'num'})}${fld('sy_paid','Bu ekstreden ödediğin (₺)','',{t:'num'})}</div>
-   <div class="note" style="margin-top:0">Bankada kartın <b>Ekstre</b> sekmesinde yazan ekstre borcunu ve ne kadarını ödediğini yaz. Kalan borç ve asgari ödeme buradan hesaplanır. Değişmediyse boş bırak.</div>
+   <div class="note"><b>Dönem içi:</b> bu ayın harcamaları ve taksit parçaları borca ve limite işlenir. <b>Kesilmiş ekstre:</b> satırlar sadece geçmiş kaydı olarak eklenir, borcu aşağıdaki kutu belirler.</div>
+   ${fld('sy_stmt','Son ekstreden kalan borç (₺)','',{t:'num'})}
+   <div class="note" style="margin-top:0">Bankada <b>ana kartın Dönem İçi</b> sekmesinde <b>"Son Ekstreden Kalan Borç"</b> yazan tutar. Sadece <b>ana kart</b> dosyasında yaz, sanal kartta boş bırak. Değişmediyse boş bırak.</div>
    ${fld('sy_avail','Bankadaki kullanılabilir limit (₺, kontrol için)','',{t:'num'})}`,
    saveLabel:'Güncelle',
    save(){if(!sy.lines){toast('Önce Excel dosyasını seç');return false}
      const sv=$('#sy_card').value,[cid,vid]=sv.split(':vc:'),card=find(S.cards,cid);if(!card)return false;
      const p=syPlan(card,vid,sy.kind,sy.lines);
      S.tx=S.tx.filter(t=>!p.drop.includes(t)).concat(p.add);
-     const eb=N('sy_stmt'),od=N('sy_paid');
+     const eb=N('sy_stmt'),od=0;
      if(eb>0){const paidAll=sum(S.cardPay.filter(x=>x.card===card.id),x=>x.amt);card.openDebt=Math.max(0,eb-od)+paidAll;card.since=p.psIso}
      const av=N('sy_avail');if(av>0)card.cmpAvail=av;
      const inf=cardInfo(card);let msg=p.add.length+' satır eklendi'+(p.skip.length?', '+p.skip.length+' kayıtlı taksit atlandı':'');
