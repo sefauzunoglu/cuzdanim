@@ -62,7 +62,7 @@ h2 button{font-size:13px;color:var(--accent);text-transform:none;letter-spacing:
 .row:first-child{border-top:0}
 .row .mid{flex:1;min-width:0}
 .row .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.row .s{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .s{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .row .amt{font-weight:700;text-align:right;white-space:nowrap}
 .row .amt small{display:block;font-weight:500;color:var(--muted);font-size:12px}
 .dot{width:10px;height:10px;border-radius:50%;flex:none}
@@ -198,7 +198,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=35;
+const KEY='cuzdanim_v1',VER=36;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -247,14 +247,19 @@ function cardInfo(c){
   const closedDebt=Math.max(0,billed-paid), over=Math.max(0,paid-billed), openDebt=Math.max(0,open-over);
   const currentDebt=closedDebt+openDebt, used=currentDebt+future;
   const minRate=c.minAuto===false?(c.minRate||20):autoMinRate(c.limit||0);
-  const min=closedDebt>0?Math.min(closedDebt,Math.max(closedDebt*minRate/100,Math.min(closedDebt,100))):0;
+  const minRaw=closedDebt>0?Math.min(closedDebt,Math.max(closedDebt*minRate/100,Math.min(closedDebt,100))):0;
   const recOnCard=sum(S.recurring.filter(r=>r.active!==false&&r.src==='card:'+c.id&&!S.recPaid[r.id+'|'+ymOf(now)]),r=>r.amt);
-  const nextEst=openDebt+recOnCard;
-  const due=stmtDue(c,cur-1);
+  const due=stmtDue(c,cur-1),dueIn=daysTo(due);
+  /* Son ödeme tarihi geçmiş kesilmiş borç "devreden borç"tur: faiz işler, bir sonraki ekstreye eklenir; ayrıca asgari istenmez */
+  const pastDue=closedDebt>0.5&&dueIn<0,devir=pastDue?closedDebt:0,min=pastDue?0:minRaw;
   const rate=c.rateAuto===false?(c.rate||0):autoRate(Math.max(closedDebt,currentDebt));
   const carry=Math.max(0,closedDebt-min),carryInt=carry*rate/100,lateInt=min*(rate+LATE)/100;
+  const interestNext=pastDue?carryInt:0;
+  /* Banka ekstresi = devreden borç + dönem içi harcama + faiz/ücret; asgari bu toplamın yüzdesi */
+  const nextEst=devir+openDebt+recOnCard+interestNext;
   return {rate,carry,carryInt,lateInt,cur,closedDebt,openDebt,currentDebt,future,used,avail:(c.limit||0)-used,util:c.limit?used/c.limit:0,min,minRate,
-    nextEst,nextMin:nextEst*minRate/100,due,dueIn:daysTo(due),dueOpen:stmtDue(c,cur),recOnCard,ch}}
+    pastDue,devir,interestNext,nextCut:stmtRange(c,cur)[1],
+    nextEst,nextMin:nextEst*minRate/100,due,dueIn,dueOpen:stmtDue(c,cur),recOnCard,ch}}
 const GU=[['gram','gram'],['ceyrek','çeyrek'],['yarim','yarım'],['tam','tam']];
 const GF={gram:1,ceyrek:1.6065,yarim:3.213,tam:6.426};
 const gp=k=>{const g=S.cfg.gold||{};return g[k]>0?g[k]:(g.gram>0?g.gram*GF[k]:0)};
@@ -291,7 +296,9 @@ const monthIncome=ym=>sum(S.incomes.filter(i=>ymOf(pd(i.date))===ym),i=>i.amt);
 const recMonthly=()=>sum(S.recurring.filter(r=>r.active!==false),r=>r.amt);
 function upcoming(days=14){
   const out=[],now=new Date(),cm=ymOf(now);
-  S.cards.forEach(c=>{const i=cardInfo(c);if(i.closedDebt>0.5)out.push({d:i.due,t:c.name+' ekstresi',s:'Asgari '+fmt(i.min)+' · Dönem borcu '+fmt(i.closedDebt),amt:i.closedDebt,k:'card',id:c.id,out:true})});
+  S.cards.forEach(c=>{const i=cardInfo(c);
+    if(i.closedDebt>0.5&&!i.pastDue)out.push({d:i.due,t:c.name,s:'Ekstre son ödeme · asgari '+fmt(i.min),amt:i.closedDebt,k:'card',id:c.id,out:true});
+    else if(i.nextEst>0.5)out.push({d:i.dueOpen,t:c.name,s:'Tahmini ekstre · asgari ~'+fmt(i.nextMin),amt:i.nextEst,k:'card',id:c.id,out:true})});
   S.recurring.filter(r=>r.active!==false).forEach(r=>{let m=cm;if(S.recPaid[r.id+'|'+m])m++;if(S.recPaid[r.id+'|'+m])return;
     out.push({d:dateAt(m,r.day),t:r.name,s:r.kind+(r.src?' · '+srcName(r.src):''),amt:r.amt,k:'rec',id:r.id,m,out:true})});
   S.incomeRec.forEach(r=>{let m=cm;if(S.incPaid[r.id+'|'+m])m++;
@@ -412,10 +419,11 @@ function instChart(){
 function advice(){
   const o=[],t=totals(),cm=ymOf(new Date()),up=upcoming(30),fc=freeCash();
   S.cards.forEach((c,i)=>{const x=t.ci[i];
-    if(x.closedDebt>0.5){const lb=x.dueIn<0?`${-x.dueIn} gün gecikti`:x.dueIn===0?'son ödeme bugün':x.dueIn+' gün kaldı';
-      o.push({l:x.dueIn<=3?'bad':'warn',t:`${c.name}: ekstre ${lb}`,s:`Dönem borcu ${fmt(x.closedDebt)}, asgari ${fmt(x.min)}. Tamamını ödersen faiz işlemez; yalnızca asgariyi ödersen kalan ${fmt(x.carry)} için aylık yaklaşık ${fmt(x.carryInt)} faiz (%${pc(x.rate)}) işler.`,go:'cards'})}
+    if(x.pastDue)o.push({l:'warn',t:`${c.name}: devreden borç ${fmt(x.devir)}`,s:`Son ödeme tarihi (${dshort(x.due)}) geçti. Bu tutara aylık yaklaşık ${fmt(x.interestNext)} faiz (%${pc(x.rate)}) işliyor ve ${dshort(x.nextCut)} ekstresine eklenecek. Ödeme yaparsan faiz azalır.`,go:'cards'});
+    else if(x.closedDebt>0.5){const lb=x.dueIn===0?'son ödeme bugün':x.dueIn+' gün kaldı';
+      o.push({l:x.dueIn<=3?'bad':'warn',t:`${c.name}: ekstre son ödemesine ${lb}`,s:`Ekstre borcu ${fmt(x.closedDebt)}, asgari ${fmt(x.min)}. Tamamını ödersen faiz işlemez; yalnızca asgariyi ödersen kalan ${fmt(x.carry)} için aylık yaklaşık ${fmt(x.carryInt)} faiz (%${pc(x.rate)}) işler.`,go:'cards'})}
     if(x.util>.8)o.push({l:'bad',t:`${c.name} limiti %${Math.round(x.util*100)} dolu`,s:`Kalan limit ${fmt(x.avail)}. Yeni harcamaları nakit veya banka hesabıyla yapmayı dene.`,go:'cards'});
-    if(x.nextEst>0)o.push({l:'info',t:`${c.name}: sonraki ekstre tahmini ${fmt(x.nextEst)}`,s:`Asgari yaklaşık ${fmt(x.nextMin)}. İçinde ${fmt(sum(x.ch.filter(z=>z.idx===x.cur&&z.n>1),z=>z.amt))} taksit var.`,go:'cards'})});
+    if(x.nextEst>0)o.push({l:'info',t:`${c.name}: sonraki ekstre tahmini ${fmt(x.nextEst)}`,s:`${x.devir>0?'Devreden borç '+fmt(x.devir)+' + ':''}bu dönem harcaması ${fmt(x.openDebt)}${x.interestNext>0?' + tahmini faiz '+fmt(x.interestNext):''}. Asgari yaklaşık ${fmt(x.nextMin)} (%${x.minRate}), son ödeme ${dshort(x.dueOpen)}.`,go:'cards'})});
   const need=sum(up.filter(u=>u.out&&u.k!=='card'),u=>u.amt)+sum(t.ci,x=>x.min);
   const surplus=t.cash-need;
   const targets=[...S.cards.map((c,i)=>({n:c.name,b:t.ci[i].currentDebt,r:t.ci[i].rate})),...S.debts.map(d=>({n:d.name,b:debtBal(d),r:d.rate||0}))].filter(x=>x.b>1).sort((a,b)=>b.r-a.r||b.b-a.b);
@@ -500,7 +508,7 @@ A.editCardX=()=>{sheetClose();editCard()};A.editAccX=()=>{sheetClose();editAcc()
 /* ============ harcamalar ============ */
 function vSpend(){
   const m=ui.month,ps=monthParts(m).sort((a,b)=>pd(b.tx.date)-pd(a.tx.date)||0);
-  const f=ui.filter,pf=parseSrc(f),list=f==='all'?ps:ps.filter(p=>pf.vc?(p.tx.src===pf.src&&p.tx.vc===pf.vc):p.tx.src===f);
+  const f=ui.filter,pf=parseSrc(f),list=f==='all'?ps:ps.filter(p=>pf.vc?(p.tx.src===pf.src&&p.tx.vc===pf.vc):(p.tx.src===f&&!(String(f).startsWith('card:')&&p.tx.vc)));
   const tot=sum(list,p=>p.amt),inc=monthIncome(m);
   const cat={};list.forEach(p=>cat[p.tx.cat]=(cat[p.tx.cat]||0)+p.amt);
   const cats=Object.entries(cat).sort((a,b)=>b[1]-a[1]);
@@ -514,7 +522,7 @@ function vSpend(){
   else body=`<div class="card">${list.map(row).join('')}</div>`;
   return `<div class="mn"><button class="ib" data-act="mon" data-d="-1" aria-label="Önceki ay">${ico('back')}</button><b>${ymLabel(m)}</b><button class="ib" data-act="mon" data-d="1" aria-label="Sonraki ay"><span style="transform:scaleX(-1);display:grid">${ico('back')}</span></button></div>
   <div class="grid3"><div class="kpi"><span>Harcama</span><b class="num">${fmtI(tot)}</b></div><div class="kpi"><span>Gelir</span><b class="num good">${fmtI(inc)}</b></div><div class="kpi"><span>Fark</span><b class="num ${inc-tot<0?'bad':'good'}">${fmtI(inc-tot)}</b></div></div>
-  <section><div class="chips scroll"><button class="chip ${f==='all'?'on':''}" data-act="flt" data-v="all">Tümü</button>${srcOptsX().map(([v,l])=>`<button class="chip ${f===v?'on':''}" data-act="flt" data-v="${v}">${esc(l)}</button>`).join('')}</div>
+  <section><div class="chips scroll"><button class="chip ${f==='all'?'on':''}" data-act="flt" data-v="all">Tümü</button>${srcOptsX().map(([v,l])=>{const cc=String(v).startsWith('card:')?find(S.cards,v.slice(5)):null,lb=cc&&(cc.vcards||[]).length?l+' (ana kart)':l;return `<button class="chip ${f===v?'on':''}" data-act="flt" data-v="${v}">${esc(lb)}</button>`}).join('')}</div>
   <div class="chips" style="margin-top:8px">${[['day','Güne göre'],['card','Karta göre'],['cat','Kategoriye göre']].map(([v,l])=>`<button class="chip ${ui.group===v?'on':''}" data-act="grp" data-v="${v}">${l}</button>`).join('')}</div></section>
   ${cats.length?`<section><h2>Kategoriler</h2><div class="card">${cats.slice(0,6).map(([n,v])=>`<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:13.5px"><span>${n}</span><b class="num">${fmtI(v)}</b></div><div class="bar"><i style="width:${v/cats[0][1]*100}%;background:${catColor(n)}"></i></div></div>`).join('')}</div></section>`:''}
   <section><h2>Hareketler</h2>${body}</section>`}
@@ -526,10 +534,10 @@ function vCards(){
   return S.cards.map(c=>{const i=cardInfo(c);return `<button class="cardtile" data-act="cardOpen" data-id="${c.id}">
    <div class="cn"><span>${esc(c.name)}</span><span class="num">${Math.round(i.util*100)}%</span></div>
    <div style="margin:10px 0 2px">${barPct(i.util)}</div><div style="font-size:12px;opacity:.7" class="num">Limit ${fmtI(c.limit)} · Kalan ${fmtI(i.avail)}</div>
-   <div class="g"><div><span>Güncel borç</span><b class="num">${fmtI(i.currentDebt)}</b></div><div><span>Kesilen ekstre${i.closedDebt>0?' · '+dshort(i.due):''}</span><b class="num">${fmtI(i.closedDebt)}</b></div>
-   <div><span>Tahmini asgari</span><b class="num">${fmtI(i.min)}</b></div><div><span>Sonraki ekstre tahmini</span><b class="num">${fmtI(i.nextEst)}</b></div></div></button>`}).join('')+
+   <div class="g"><div><span>Güncel borç</span><b class="num">${fmtI(i.currentDebt)}</b></div><div><span>${i.pastDue?'Devreden borç (faiz işliyor)':i.closedDebt>0.5?'Ödenecek ekstre · son ödeme '+dshort(i.due):'Ödenecek ekstre'}</span><b class="num">${fmtI(i.closedDebt)}</b></div>
+   <div><span>Bu dönem harcaması · ${dshort(i.nextCut)} kesilir</span><b class="num">${fmtI(i.openDebt)}</b></div><div><span>Sonraki ekstre tahmini · asgari ~${fmtI(i.nextMin)}</span><b class="num">${fmtI(i.nextEst)}</b></div></div></div></button>`}).join('')+
    `<div class="btns"><button class="btn" data-act="editCard">+ Kart ekle</button></div>
-   <div class="note">Tutarlar girdiğin harcamalardan canlı hesaplanır. Banka ekstresiyle fark çıkarsa kartı düzenleyip “başlangıç borcu”nu ayarla.</div>`}
+   <div class="note">Tutarlar girdiğin harcamalardan canlı hesaplanır. Banka ile fark çıkarsa kartı aç ve <b>Bankadan güncelle</b> ile Excel yükle.</div>`}
 A.cardOpen=d=>{ui.card=d.id;go('cardDetail')};
 function vCardDetail(){
   const c=find(S.cards,ui.card);if(!c){ui.view='cards';return vCards()}
@@ -541,7 +549,7 @@ function vCardDetail(){
   const [a,b]=stmtRange(c,i.cur);
   return `<header class="top"><button class="ib" data-act="back" aria-label="Geri">${ico('back')}</button><h1>${esc(c.name)}<small>Kesim ${c.cutoff}. gün · Son ödeme ${c.due}. gün · Asgari %${i.minRate} · Faiz %${pc(i.rate)}/ay</small></h1><button class="ib" data-act="editCard" data-id="${c.id}" aria-label="Düzenle">${ico('gear')}</button></header>
   <div class="cardtile"><div class="cn"><span>Güncel borç</span><span class="num">${fmtI(i.currentDebt)}</span></div><div style="margin:10px 0 2px">${barPct(i.util)}</div><div style="font-size:12px;opacity:.7" class="num">Limit ${fmtI(c.limit)} · Kullanılan ${fmtI(i.used)} · Kalan ${fmtI(i.avail)}</div>
-   <div class="g"><div><span>Kesilen ekstre (son ödeme ${dshort(i.due)})</span><b class="num">${fmtI(i.closedDebt)}</b></div><div><span>Tahmini asgari (%${i.minRate})</span><b class="num">${fmtI(i.min)}</b></div><div><span>Açık dönem harcaması</span><b class="num">${fmtI(i.openDebt)}</b></div><div><span>Kalan taksitler</span><b class="num">${fmtI(i.future)}</b></div></div></div>
+   <div class="g"><div><span>${i.pastDue?'Devreden borç (son ödeme '+dshort(i.due)+' geçti)':i.closedDebt>0.5?'Ödenecek ekstre (son ödeme '+dshort(i.due)+')':'Ödenecek ekstre'}</span><b class="num">${fmtI(i.closedDebt)}</b></div><div><span>Bu dönem harcaması (${dshort(i.nextCut)} kesilir)</span><b class="num">${fmtI(i.openDebt)}</b></div><div><span>Kalan taksitler</span><b class="num">${fmtI(i.future)}</b></div><div><span>Sonraki ekstre tahmini</span><b class="num">${fmtI(i.nextEst)}</b></div></div></div>
   <div class="btns"><button class="btn pri" data-act="payCard" data-id="${c.id}">Kart borcu öde</button><button class="btn" data-act="newOn" data-id="${c.id}">Bu karta harcama</button></div>
   <div class="btns" style="margin-top:8px"><button class="btn" data-act="syOpen" data-id="${c.id}">Bankadan güncelle (Excel)</button></div>
   ${(c.vcards||[]).length?`<section><h2>Sanal kartlar</h2><div class="card">${c.vcards.map((v,k)=>{const cur=ch.filter(x=>x.idx===i.cur&&x.tx.vc===v.id),prev=ch.filter(x=>x.idx===i.cur-1&&x.tx.vc===v.id);return `<div class="row">${av(v.name)}<div class="mid"><div class="t">${esc(v.name)}</div><div class="s">${v.last4?'•••• '+esc(v.last4)+' · ':''}açık dönem ${fmtI(sum(cur,x=>x.amt))} · önceki ekstre ${fmtI(sum(prev,x=>x.amt))}</div></div><div class="amt num">${fmtI(sum(ch.filter(x=>x.tx.vc===v.id&&x.idx<=i.cur),x=>x.amt))}<small>toplam</small></div></div>`}).join('')}</div><div class="note">Sanal kartların harcamaları bu kartın borcuna ve limitine dahildir; burada ayrıca gruplanır.</div></section>`:''}
@@ -552,9 +560,16 @@ function vCardDetail(){
    <div class="f2">${fld('cmp_open','Dönem içi toplamı (₺)',c.cmpOpen?nv(c.cmpOpen):'',{t:'num'})}${fld('cmp_future','Gelecek dönem toplamı (₺)',c.cmpFuture?nv(c.cmpFuture):'',{t:'num'})}</div>
    ${fld('cmp_avail','Kullanılabilir limit (₺)',c.cmpAvail?nv(c.cmpAvail):'',{t:'num'})}
    <button class="btn sm" data-act="cmpSave" data-id="${c.id}">Karşılaştır</button>${cmpHtml(c,i)}</div></section>
-  <section><h2>Tahminler</h2><div class="card"><div class="row"><div class="mid"><div class="t">Sonraki ekstre tahmini</div><div class="s">Açık dönem ${fmtI(i.openDebt)}${i.recOnCard?` + ödenmemiş sabit gider ${fmtI(i.recOnCard)}`:''}</div></div><div class="amt num">${fmtI(i.nextEst)}<small>asgari ~${fmtI(i.nextMin)}</small></div></div>
-  <div class="row"><div class="mid"><div class="t">Dönem içi harcama</div><div class="s">${dshort(a)} – ${dshort(b)}</div></div><div class="amt num">${fmtI(sum(ch.filter(x=>x.idx===i.cur),x=>x.amt))}</div></div></div></section>
-  ${i.closedDebt>0.5?`<section><h2>Ekstreyi nasıl ödersen</h2><div class="card">
+  <section><h2>Sonraki ekstre · ${dshort(i.nextCut)} kesilir</h2><div class="card">
+   ${i.devir>0?`<div class="row" style="border:0"><div class="mid"><div class="t">Devreden borç</div><div class="s">Son ödeme tarihi geçen, ödenmeyen kısım</div></div><div class="amt num">${fmtI(i.devir)}</div></div>`:''}
+   <div class="row"><div class="mid"><div class="t">Bu dönem harcaması</div><div class="s">${dshort(a)} – ${dshort(b)} · taksit parçaları dahil</div></div><div class="amt num">${fmtI(i.openDebt)}</div></div>
+   ${i.interestNext>0?`<div class="row"><div class="mid"><div class="t">Tahmini faiz</div><div class="s">Devreden borcun %${pc(i.rate)}'i</div></div><div class="amt num">${fmtI(i.interestNext)}</div></div>`:''}
+   ${i.recOnCard?`<div class="row"><div class="mid"><div class="t">Ödenmemiş sabit gider</div></div><div class="amt num">${fmtI(i.recOnCard)}</div></div>`:''}
+   <div class="row"><div class="mid"><div class="t"><b>Tahmini ekstre borcu</b></div></div><div class="amt num"><b>${fmtI(i.nextEst)}</b></div></div>
+   <div class="row"><div class="mid"><div class="t">Asgari ödeme (%${i.minRate})</div><div class="s">Son ödeme ${dshort(i.dueOpen)}</div></div><div class="amt num warn">~${fmtI(i.nextMin)}</div></div></div>
+   <div class="note">Banka asgariyi, devreden borç ve faiz dahil <b>toplam ekstre borcunun</b> yüzdesi olarak hesaplar. Faiz tutarı tahminidir, bankanın hesabı biraz farklı çıkabilir.</div></section>
+  ${i.pastDue?`<section><h2>Devreden borç</h2><div class="card"><div class="note" style="margin:0">Son ödeme tarihi (${dshort(i.due)}) geçti. Kalan <b>${fmtI(i.devir)}</b> bankada devreden borç olarak faiz işler (yaklaşık ${fmtI(i.interestNext)} / ay) ve ${dshort(i.nextCut)} ekstresine eklenir. Ödeme yaparsan (<b>Kart borcu öde</b>) faiz azalır.</div></div></section>`:''}
+  ${i.closedDebt>0.5&&!i.pastDue?`<section><h2>Ekstreyi nasıl ödersen</h2><div class="card">
    <div class="row" style="border:0"><div class="mid"><div class="t">Tamamını ödersen</div><div class="s">Faiz işlemez</div></div><div class="amt num good">${fmtI(i.closedDebt)}<small>kalan 0 ₺</small></div></div>
    <div class="row"><div class="mid"><div class="t">Sadece asgariyi ödersen</div><div class="s">${fmtI(i.min)} ödenir, ${fmtI(i.carry)} sonraki aya taşınır</div></div><div class="amt num warn">+${fmtI(i.carryInt)}<small>aylık faiz %${pc(i.rate)}</small></div></div>
    <div class="row"><div class="mid"><div class="t">Asgarinin altında ödersen</div><div class="s">Eksik kısma gecikme faizi (%${pc(i.rate+LATE)}) işler</div></div><div class="amt num bad">%${pc(i.rate+LATE)}<small>${fmtI(i.lateInt)} / ay (asgari üzerinden)</small></div></div></div>
@@ -568,7 +583,7 @@ A.cmpCut=d=>{const c=find(S.cards,d.id);if(!c)return;c.cutoff=+d.v;persist();ren
 A.newOn=d=>openExpense(null,{src:'card:'+d.id});
 A.delPay=d=>{const p=find(S.cardPay,d.id);confirmSheet('Ödemeyi sil',`${fmt(p.amt)} tutarındaki kart ödemesi silinsin mi?`,()=>{S.cardPay.splice(S.cardPay.indexOf(p),1);save()})};
 function payCard(id){const c=find(S.cards,id),i=cardInfo(c);
-  openSheet({title:c.name+' borcu öde',body:`<div class="chips" style="margin-bottom:12px"><button class="chip" data-act="pf" data-v="${i.min.toFixed(2)}">Asgari ${fmtI(i.min)}</button><button class="chip" data-act="pf" data-v="${i.closedDebt.toFixed(2)}">Ekstre ${fmtI(i.closedDebt)}</button><button class="chip" data-act="pf" data-v="${i.currentDebt.toFixed(2)}">Tüm borç ${fmtI(i.currentDebt)}</button></div>
+  openSheet({title:c.name+' borcu öde',body:`<div class="chips" style="margin-bottom:12px">${i.min>0?`<button class="chip" data-act="pf" data-v="${i.min.toFixed(2)}">Asgari ${fmtI(i.min)}</button>`:''}<button class="chip" data-act="pf" data-v="${i.closedDebt.toFixed(2)}">${i.pastDue?'Devreden borç':'Ekstre'} ${fmtI(i.closedDebt)}</button><button class="chip" data-act="pf" data-v="${i.currentDebt.toFixed(2)}">Tüm borç ${fmtI(i.currentDebt)}</button></div>
    ${fld('p_amt','Ödenen tutar (₺)',nv(+i.closedDebt.toFixed(2)),{t:'num',cls:'amtin'})}${S.accounts.length?fld('p_from','Hangi hesaptan?',S.accounts[0].id,{t:'select',opts:[['','Hesaptan düşme'],...S.accounts.map(a=>[a.id,a.name+' ('+fmtI(accBal(a))+')'])]}):''}${fld('p_date','Tarih',today(),{t:'date'})}`,
    save(){const amt=N('p_amt');if(!(amt>0)){toast('Tutarı gir');return false}S.cardPay.push({id:uid(),card:id,amt,from:V('p_from')||'',date:V('p_date')||today()});save();toast('Ödeme kaydedildi')}})}
 A.payCard=d=>payCard(d.id);A.pf=d=>setV('p_amt',nv(+d.v));
