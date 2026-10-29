@@ -215,7 +215,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=36;
+const KEY='cuzdanim_v1',VER=37;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -673,6 +673,7 @@ function syPlan(card,vid,kind,lines){
     if(vid)o.vc=vid;
     if(l.inst){const left=l.inst.n-l.inst.k+1;o.inst=left;o.amt=l.amt*left;o.note=l.desc+' (kalan taksitler)'}
     if(l.sub&&l.cat==='Araba')o.sub=l.sub;
+    if(l.cat==='Araba'&&S.cars.length===1)o.car=S.cars[0].id;
     if(kind==='open'){o.imp=key;if(l.date<psIso)o.sd=psIso}else o.hist=true;
     add.push(o)});
   return {drop,add,skip,psIso,cur}}
@@ -954,9 +955,11 @@ function vCar(){
      ${rem?`<div class="chips" style="margin-bottom:10px">${rem}</div>`:''}
      <div class="grid3"><div class="kpi" style="background:var(--surface2);box-shadow:none"><span>Bu ay</span><b class="num">${fmtI(sum(mo,t=>t.amt))}</b></div><div class="kpi" style="background:var(--surface2);box-shadow:none"><span>Son 12 ay</span><b class="num">${fmtI(sum(yr,t=>t.amt))}</b></div><div class="kpi" style="background:var(--surface2);box-shadow:none"><span>${span?'₺/km':'Karttan'}</span><b class="num">${span?fmt(sum(tx.filter(t=>t.km||true),t=>t.amt)/span):fmtI(onCard)}</b></div></div>
      ${Object.keys(by).length?`<div style="margin-top:10px">${Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([n,v])=>`<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0"><span>${n}</span><b class="num">${fmtI(v)}</b></div>`).join('')}</div>`:''}
+     ${(()=>{const u=S.tx.filter(t=>t.cat==='Araba'&&!t.car);return u.length?`<div class="prev" style="margin-top:10px">Kategorisi <b>Araba</b> olup arabaya bağlı olmayan <b>${u.length}</b> harcama var (${fmtI(sum(u,t=>t.amt))}), örneğin bankadan aktardığın yakıt işlemleri. <b>Tekrar girme</b>, çift sayılır. Bu arabaya bağlaman yeter. <button type="button" class="chip" data-act="carLink" data-id="${c.id}">Bu arabaya bağla</button></div>`:''})()}
      <div class="btns"><button class="btn pri" data-act="carExp" data-id="${c.id}">+ Araba gideri</button></div>
      ${tx.length?`<div style="margin-top:6px">${tx.slice().sort((a,b)=>pd(b.date)-pd(a.date)).slice(0,5).map(t=>`<button class="row" data-act="editTx" data-id="${t.id}"><div class="mid"><div class="t">${esc(t.sub||'Gider')}${t.note?' · '+esc(t.note):''}</div><div class="s">${dshort(pd(t.date))} · ${esc(srcName(t.src))}${t.inst>1?' · '+t.inst+' taksit':''}</div></div><div class="amt num">${fmtI(t.amt)}</div></button>`).join('')}</div>`:''}</div>`}).join('')+`<div class="btns"><button class="btn" data-act="editCar">+ Araba ekle</button></div>`}
 A.carExp=d=>openExpense(null,{cat:'Araba',car:d.id});
+A.carLink=d=>{let n=0;S.tx.forEach(t=>{if(t.cat==='Araba'&&!t.car){t.car=d.id;n++}});save();toast(n+' harcama arabaya bağlandı')};
 A.editCar=d=>{const x=d&&d.id?find(S.cars,d.id):null;
   openSheet({title:x?'Arabayı düzenle':'Araba ekle',body:`${fld('a_name','Araba',x?x.name:'',{ph:'örn. Fiat Egea'})}<div class="f2">${fld('a_plate','Plaka',x?x.plate:'')}${fld('a_km','Kilometre',x?nv(x.km):'',{t:'num'})}</div>${fld('a_ins','Muayene tarihi',x?x.inspect:'',{t:'date'})}${fld('a_sig','Trafik sigortası bitişi',x?x.insurance:'',{t:'date'})}${fld('a_kas','Kasko bitişi',x?x.kasko:'',{t:'date'})}`,
    save(){const n=V('a_name').trim();if(!n){toast('Ad gir');return false}const o={name:n,plate:V('a_plate').trim(),km:N('a_km'),inspect:V('a_ins'),insurance:V('a_sig'),kasko:V('a_kas')};if(x)Object.assign(x,o);else S.cars.push(Object.assign({id:uid()},o));save()},
