@@ -115,6 +115,12 @@ h2 button{font-size:13px;color:var(--accent);text-transform:none;letter-spacing:
 .menu button{background:var(--surface);border-radius:16px;padding:14px;text-align:left;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px;min-height:92px}
 .menu button svg{width:26px;height:26px;color:var(--accent)}
 .menu button b{font-size:15px}.menu button span{font-size:12px;color:var(--muted)}
+.pick{display:flex;align-items:center;gap:14px;padding:18px 16px;border:1.5px dashed var(--accent);border-radius:16px;background:var(--accent-soft);cursor:pointer;margin:4px 0 12px}
+.pick input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.pick .pi{width:42px;height:42px;border-radius:12px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.pick b{display:block;font-size:15.5px}.pick small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px;overflow-wrap:anywhere}
+.pick.done{border-style:solid}
+.pick .pi svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
 .cardtile{background:var(--ink);color:var(--bg);border-radius:20px;padding:16px;width:100%;text-align:left;display:block}
 .cardtile+.cardtile{margin-top:10px}
 .cardtile .bar{background:rgba(127,127,127,.3)}
@@ -198,7 +204,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=42;
+const KEY='cuzdanim_v1',VER=43;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -555,13 +561,6 @@ function vCardDetail(){
   <div class="btns"><button class="btn pri" data-act="payCard" data-id="${c.id}">Kart borcu öde</button><button class="btn" data-act="newOn" data-id="${c.id}">Bu karta harcama</button></div>
   <div class="btns" style="margin-top:8px"><button class="btn" data-act="syOpen" data-id="${c.id}">Bankadan güncelle (Excel)</button></div>
   ${(c.vcards||[]).length?`<section><h2>Sanal kartlar</h2><div class="card">${c.vcards.map((v,k)=>{const cur=ch.filter(x=>x.idx===i.cur&&x.tx.vc===v.id),prev=ch.filter(x=>x.idx===i.cur-1&&x.tx.vc===v.id);return `<div class="row">${av(v.name)}<div class="mid"><div class="t">${esc(v.name)}</div><div class="s">${v.last4?'•••• '+esc(v.last4)+' · ':''}açık dönem ${fmtI(sum(cur,x=>x.amt))} · önceki ekstre ${fmtI(sum(prev,x=>x.amt))}</div></div><div class="amt num">${fmtI(sum(ch.filter(x=>x.tx.vc===v.id&&x.idx<=i.cur),x=>x.amt))}<small>toplam</small></div></div>`}).join('')}</div><div class="note">Sanal kartların harcamaları bu kartın borcuna ve limitine dahildir; burada ayrıca gruplanır.</div></section>`:''}
-  <section><h2>Bankayla karşılaştır</h2><div class="card">
-   <div class="note" style="margin:0 0 10px">Bankanın uygulamasında kartının <b>Ekstre</b>, <b>Dönem İçi</b> ve <b>Gelecek Dönem</b> ekranlarındaki tutarları yaz. Hangi kalemin farklı olduğunu satır satır göstereyim. Boş bıraktıkların karşılaştırılmaz.</div>
-   ${fld('cmp_cut','Bankadaki ekstre kesim günü (ayın kaçı)',c.cmpCut?String(c.cmpCut):'',{t:'num',ph:'örn. 28'})}
-   <div class="f2">${fld('cmp_stmt','Ekstre borcu (₺)',c.cmpStmt?nv(c.cmpStmt):'',{t:'num'})}${fld('cmp_paid','Bu ekstreden ödediğin (₺)',c.cmpPaid?nv(c.cmpPaid):'',{t:'num'})}</div>
-   <div class="f2">${fld('cmp_open','Dönem içi toplamı (₺)',c.cmpOpen?nv(c.cmpOpen):'',{t:'num'})}${fld('cmp_future','Gelecek dönem toplamı (₺)',c.cmpFuture?nv(c.cmpFuture):'',{t:'num'})}</div>
-   ${fld('cmp_avail','Kullanılabilir limit (₺)',c.cmpAvail?nv(c.cmpAvail):'',{t:'num'})}
-   <button class="btn sm" data-act="cmpSave" data-id="${c.id}">Karşılaştır</button>${cmpHtml(c,i)}</div></section>
   <section><h2>Sonraki ekstre · ${dshort(i.nextCut)} kesilir</h2><div class="card">
    ${i.devir>0?`<div class="row" style="border:0"><div class="mid"><div class="t">Devreden borç</div><div class="s">Son ödeme tarihi geçen, ödenmeyen kısım</div></div><div class="amt num">${fmtI(i.devir)}</div></div>`:''}
    <div class="row"><div class="mid"><div class="t">Bu dönem harcaması</div><div class="s">${dshort(a)} – ${dshort(b)} · taksit parçaları dahil</div></div><div class="amt num">${fmtI(i.openDebt)}</div></div>
@@ -701,19 +700,21 @@ function syPlan(card,vid,kind,lines){
   return {drop,add,skip,psIso,cur,autoDrop,matches,fixes,cutSd}}
 function syInfo(){const el=$('#sy_info');if(!el||!sy)return;
   if(!sy.lines){el.innerHTML='';return}
+  {const af=$('#sy_after');if(af)af.hidden=false;const sv0=($('#sy_card')||{}).value||'',bx=$('#sy_stmtbox');if(bx)bx.hidden=sv0.includes(':vc:')}
   const sv=($('#sy_card')||{}).value||sy.card,[cid,vid]=sv.split(':vc:'),card=find(S.cards,cid);if(!card)return;
   const p=syPlan(card,vid,sy.kind,sy.lines),tot=sum(sy.lines.filter(l=>l.kind==='charge'),l=>l.inst?l.amt:l.amt),addAmt=sum(p.add,t=>t.amt/(t.inst||1));
   const nm=vid?(vcOf(card,vid)||{}).name+' (sanal kart)':card.name+' (ana kart)';
   const mt=sy.meta?`<div class="note" style="margin:0 0 8px">PDF: dönem borcu <b>${fmt(sy.meta.debt||0)}</b> · asgari ${fmt(sy.meta.min||0)}${sy.meta.cut?' · kesim '+dshort(pd(sy.meta.cut)):''}${sy.meta.due?' · son ödeme '+dshort(pd(sy.meta.due)):''}. Kutuya dönem borcu yazıldı; ekstre kesildikten sonra ödeme yaptıysan düşerek düzelt.</div>`:'';
-  el.innerHTML=mt+`<div class="prev"><b>${sy.lines.length} satır okundu</b> (${fmt(tot)}). Aktarılacak kart: <b>${esc(nm)}</b>.<br>Eklenecek: <b>${p.add.length}</b> satır${p.skip.length?` · zaten kayıtlı olduğu için atlanacak: ${p.skip.length}`:''}${p.drop.length?` · bu dönemden önce aktarılan ${p.drop.length} satır yenisiyle değiştirilecek`:''}.</div>${sy.kind==='last'&&!vid?'<div class="prev warn" style="margin-top:8px"><b>Kesilmiş ekstre:</b> aşağıdaki <b>Son ekstreden kalan borç</b> kutusunu doldurman gerekiyor. Excel\'de ekstre borcu yazmaz; devreden borç ve faiz bankadan gelir.</div>':''}`;
+  el.innerHTML=mt+`<div class="prev"><b>${sy.lines.length} satır okundu</b> (${fmt(tot)}). Aktarılacak kart: <b>${esc(nm)}</b>.<br>Eklenecek: <b>${p.add.length}</b> satır${p.skip.length?` · zaten kayıtlı olduğu için atlanacak: ${p.skip.length}`:''}${p.drop.length?` · bu dönemden önce aktarılan ${p.drop.length} satır yenisiyle değiştirilecek`:''}.</div>${sy.kind==='last'&&!vid&&!sy.meta?'<div class="prev warn" style="margin-top:8px"><b>Kesilmiş ekstre:</b> aşağıdaki <b>Son ekstreden kalan borç</b> kutusunu doldurman gerekiyor. Excel\'de ekstre borcu yazmaz; devreden borç ve faiz bankadan gelir.</div>':''}`;
   document.querySelectorAll('#sy_kind .chip').forEach(c=>c.classList.toggle('on',c.dataset.v===sy.kind))}
 document.addEventListener('change',async e=>{
   if(e.target.id==='sy_card'){syInfo();return}
   if(e.target.id!=='sy_file')return;const f=e.target.files[0];if(!f||!sy)return;
+  {const pk=$('#sy_pick');if(pk)pk.classList.add('done');const t=$('#sy_pickt'),n=$('#sy_pickn');if(t)t.textContent='Dosya seçildi';if(n)n.textContent=f.name}
   try{if(/\.pdf$/i.test(f.name)||f.type==='application/pdf'){toast('PDF okunuyor…');const r=syParsePdf(await pdfToText(f));
       if(!r.lines.length){toast('PDF\'ten harcama satırı okunamadı. Excel dosyasını dene');return}
       sy.lines=r.lines;sy.kind='last';sy.meta=r.meta;sy.pdf=true;const mm=stmtFind4(r.meta.last4);if(mm&&$('#sy_card'))$('#sy_card').value=mm.val;
-      const e=$('#sy_stmt');if(e&&r.meta.debt)e.value=nv(r.meta.debt);syInfo();return}
+      const e=$('#sy_stmt');if(e&&r.meta.debt)e.value=r.meta.debt.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2});syInfo();return}
     if(!/\.(xls|xlsx|csv)$/i.test(f.name)){toast('Excel (.xls, .xlsx, .csv) veya PDF dosyası seç');return}
     sy.pdf=false;sy.meta=null;
     toast('Dosya okunuyor…');const rows=await sheetToRows(f),secs=Stmt.parseTable(rows),lines=[].concat(...secs.map(x=>x.lines));
@@ -723,15 +724,16 @@ document.addEventListener('change',async e=>{
     syInfo()}catch(err){toast('Dosya okunamadı')}});
 A.syKind=d=>{if(!sy)return;sy.kind=d.v;syInfo()};
 A.syOpen=d=>{const c=find(S.cards,d.id);if(!c)return;sy={card:c.id,lines:null,kind:'open'};
-  openSheet({title:esc(c.name)+' · bankadan güncelle',body:`<div class="note" style="margin-top:0">Bankanın internet şubesinden <b>Dönem içi işlemler</b> veya <b>Ekstre</b> Excel'ini indirip seç. Dosya telefondan çıkmaz. Aynı dönemi tekrar yüklersen eski satırlar yenileriyle değiştirilir, çift sayılmaz.</div>
-   <label class="f"><span>Excel veya PDF dosyası</span><input id="sy_file" type="file" accept=".xls,.xlsx,.csv,.pdf,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"></label>
+  openSheet({title:esc(c.name)+' · bankadan güncelle',body:`<div class="note" style="margin-top:0">Bankanın internet şubesinden indirdiğin <b>ekstre PDF'i</b> veya <b>Dönem içi / Ekstre Excel'i</b> yeterli. Dosya telefondan çıkmaz. Aynı dönemi tekrar yüklersen çift sayılmaz.</div>
+   <label class="pick" id="sy_pick"><input id="sy_file" type="file" accept=".xls,.xlsx,.csv,.pdf,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"><span class="pi">${ico('plus')}</span><span><b id="sy_pickt">Dosya seç</b><small id="sy_pickn">PDF veya Excel (.xls, .xlsx)</small></span></label>
+   <div id="sy_after" hidden>
    <div id="sy_info"></div>
-   <label class="f"><span>Bu dosya hangi karta ait? (ana kart ve sanal kartın dosyaları ayrıdır)</span><select id="sy_card">${syCardOpts(c)}</select></label>
+   <label class="f"><span>Hangi karta ait? (ana kart ve sanal kartın dosyaları ayrıdır)</span><select id="sy_card">${syCardOpts(c)}</select></label>
    <div class="f"><span>Dosya ne?</span><div class="chips" id="sy_kind"><button type="button" class="chip" data-act="syKind" data-v="open">Dönem içi (bu ay)</button><button type="button" class="chip" data-act="syKind" data-v="last">Kesilmiş ekstre</button></div></div>
-   <div class="note"><b>Dönem içi:</b> bu ayın harcamaları ve taksit parçaları borca ve limite işlenir. <b>Kesilmiş ekstre:</b> satırlar sadece geçmiş kaydı olarak eklenir, borcu aşağıdaki kutu belirler.</div>
-   ${fld('sy_stmt','Son ekstreden kalan borç (₺)','',{t:'num'})}
-   <div class="note" style="margin-top:0">Bankada <b>ana kartın Dönem İçi</b> sekmesinde <b>"Son Ekstreden Kalan Borç"</b> yazan tutar. Sadece <b>ana kart</b> dosyasında yaz, sanal kartta boş bırak. Değişmediyse boş bırak.</div>
-   ${fld('sy_avail','Bankadaki kullanılabilir limit (₺, kontrol için)','',{t:'num'})}`,
+   <div id="sy_stmtbox">${fld('sy_stmt','Son ekstreden kalan borç (₺)','',{t:'num'})}
+   <div class="note" style="margin-top:0">Bankada ana kartın <b>Dönem İçi</b> sekmesindeki <b>"Son Ekstreden Kalan Borç"</b>. PDF'te kendiliğinden dolar.</div></div>
+   ${fld('sy_avail','Bankadaki kullanılabilir limit (₺, isteğe bağlı kontrol)','',{t:'num'})}
+   </div>`,
    saveLabel:'Güncelle',
    save(){if(!sy.lines){toast('Önce Excel dosyasını seç');return false}
      const sv=$('#sy_card').value,[cid,vid]=sv.split(':vc:'),card=find(S.cards,cid);if(!card)return false;
