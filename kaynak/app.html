@@ -198,7 +198,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=40;
+const KEY='cuzdanim_v1',VER=41;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -745,7 +745,7 @@ A.syOpen=d=>{const c=find(S.cards,d.id);if(!c)return;sy={card:c.id,lines:null,ki
 /* Taksit satırı: banka her ay k/n'yi ve birkaç kuruş farklı tutarı yazar; açıklama köküyle eşleştir */
 const stmtRoot=x=>String(x||'').toUpperCase().replace(/\(KALAN TAKS[^)]*\)/g,' ').replace(/\(\d+\/\d+\)/g,' ').replace(/\s+/g,' ').trim();
 const stmtDupPred=(card,l)=>t=>{if(t.src!=='card:'+card.id)return false;const per=t.amt/(t.inst||1);
-  if(l.inst&&t.inst>1&&stmtRoot(t.note)===stmtRoot(l.desc)&&Math.abs(per-l.amt)<=Math.max(.5,l.amt*.002))return true;
+  if(l.inst&&t.inst>1&&Math.abs(per-l.amt)<=Math.max(.5,l.amt*.002)){const ra=stmtRoot(t.note),rb=stmtRoot(l.desc);if(ra===rb||(Math.min(ra.length,rb.length)>=6&&(ra.startsWith(rb)||rb.startsWith(ra))))return true}
   return Math.abs(per-l.amt)<.01&&(t.date===l.date||(l.inst&&t.inst>1))};
 const stmtDupOf=(card,l,pool)=>(pool||S.tx).some(stmtDupPred(card,l));
 function stmtDefaultCard(sec,i,n){
