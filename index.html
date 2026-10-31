@@ -215,7 +215,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=39;
+const KEY='cuzdanim_v1',VER=40;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -663,6 +663,33 @@ A.stmtOpen=d=>{const c=find(S.cards,d.id);if(!c)return;stm={card:c.id,sections:n
      stm.sections=[{last4:'',title:'',lines:r.lines,skipped:[],summary:r.summary}];setTimeout(stmtReview,0);return true}})};
 /* ============ bankadan güncelle: dönem içi / ekstre Excel'i ============ */
 let sy=null;
+/* Garanti kredi kartı ekstresi PDF'i: özet, ana kart ve sanal kart satırları (dosya telefondan çıkmaz, pdf.js ile cihazda okunur) */
+const TRMON={ocak:1,'şubat':2,subat:2,mart:3,nisan:4,'mayıs':5,mayis:5,haziran:6,temmuz:7,'ağustos':8,agustos:8,'eylül':9,eylul:9,ekim:10,'kasım':11,kasim:11,'aralık':12,aralik:12};
+function syParsePdf(text){
+  const rows=text.split(/\r?\n/).map(r=>r.replace(/\bbosluk\w*/gi,' ').replace(/\s+/g,' ').trim()).filter(Boolean),num=x=>parseFloat(String(x).replace(/\./g,'').replace(',','.'));
+  const meta={},lines=[];let sec='',head='';
+  const dIso=(d,m,y)=>{const mm=TRMON[String(m).toLocaleLowerCase('tr-TR')];return mm?y+'-'+pad(mm)+'-'+pad(+d):''};
+  const hcat=h=>{const u=Stmt&&String(h).toLocaleLowerCase('tr-TR');if(/akaryak/.test(u))return {cat:'Araba',sub:'Yakıt'};if(/giyim/.test(u))return {cat:'Giyim'};if(/cafe|restaurant|fast food|pastane/.test(u))return {cat:'Yemek'};if(/süpermarket|supermarket/.test(u))return {cat:'Market'};if(/kitap|kırtasiye/.test(u))return {cat:'Eğitim'};if(/rentacar|ulaşım/.test(u))return {cat:'Ulaşım'};if(/eczane|sağlık/.test(u))return {cat:'Sağlık'};if(/güzellik|kuaför/.test(u))return {cat:'Kişisel'};return null};
+  rows.forEach(r=>{let m;
+    if(m=/Hesap Kesim Tarihi\s+(\d{1,2}) (\S+) (\d{4})/i.exec(r))meta.cut=dIso(m[1],m[2],m[3]);
+    else if(!meta.due&&(m=/Son Ödeme Tarihi:?\s+(\d{1,2}) (\S+) (\d{4})/i.exec(r)))meta.due=dIso(m[1],m[2],m[3]);
+    else if(!meta.debt&&(m=/Dönem Borcunuz\s+([\d.]+,\d{2})/i.exec(r)))meta.debt=num(m[1]);
+    else if(!meta.min&&(m=/Min\.? Ödeme Tutarı\s+([\d.]+,\d{2})/i.exec(r)))meta.min=num(m[1]);
+    else if(!meta.last4&&(m=/Kart Numarası\s+\d{4} \d{2}\*+ \*+ (\d{4})/i.exec(r)))meta.last4=m[1];
+    else if(m=/SANAL KART BİLGİLERİN[İI]Z.*?(\d{4})\s*(?:bosl\w*)?$/i.exec(r))sec=m[1];
+    else if(!meta.devir&&(m=/ÖNCEKİ DÖNEMDEN DEVİR EDİLEN TUTAR\s+([\d.]+,\d{2})/i.exec(r)))meta.devir=num(m[1]);
+    else if(m=/^(\d{1,2}) ([A-Za-zÇĞİÖŞÜçğıöşü]+) (\d{4}) (.+)$/.exec(r)){
+      const date=dIso(m[1],m[2],m[3]);if(!date)return;let rest=m[4].replace(/\s*bosluk\s*$/i,'');
+      const am=/([\d.]+,\d{2})(\+)?$/.exec(rest);if(!am||am[2])return;           // ödemeler (+) borca zaten yansımış
+      const amt=num(am[1]);rest=rest.slice(0,am.index).trim();
+      let inst;const im=/([\d.]+,\d{2})x(\d+)=([\d.]+,\d{2}) (\d+)\.Taksit/.exec(rest);
+      if(im){inst={k:+im[4],n:+im[2]};rest=(rest.slice(0,im.index)+' '+rest.slice(im.index+im[0].length)).trim()}
+      rest=rest.replace(/\s\d{1,3},\d{2}$/,'').trim();                            // bonus sütunu
+      if(!rest||!(amt>0))return;
+      const g=Stmt.guessCategory(rest),h=g.cat==='Diğer'?hcat(head):null,c=h||g;
+      const o={date,desc:rest,amt,kind:'charge',cat:c.cat,v:sec};if(c.sub)o.sub=c.sub;if(inst)o.inst=inst;lines.push(o)}
+    else if(!/\d/.test(r)&&r.length<45)head=r});
+  return {meta,lines}}
 const syKind=rows=>rows.slice(0,80).some(r=>/d[öo]nem\s*i[çc]i/i.test((r||[]).map(String).join(' ')))?'open':'last';
 const syCardOpts=c=>`<option value="${c.id}">${esc(c.name)} (ana kart)${c.last4?' •••• '+c.last4:''}</option>`+(c.vcards||[]).map(v=>`<option value="${c.id}:vc:${v.id}">${esc(v.name)} (sanal kart)${v.last4?' •••• '+v.last4:''}</option>`).join('');
 const recKey=x=>String(x||'').toUpperCase().replace(/İ/g,'I').replace(/[ÇĞÖŞÜ]/g,m=>({'Ç':'C','Ğ':'G','Ö':'O','Ş':'S','Ü':'U'}[m])).replace(/[^A-Z0-9]/g,'');
@@ -677,7 +704,7 @@ function syPlan(card,vid,kind,lines){
       if(ex&&!ex.auto&&!drop.includes(ex)){skip.push(l);return}
       if(ex&&ex.auto)autoDrop.push(ex);rm={r,k}}}
     const o={id:uid(),cat:l.cat,src:'card:'+card.id,note:l.desc,date:l.date,inst:1,amt:l.amt};
-    if(vid)o.vc=vid;
+    const lv=l.v!==undefined?(l.v&&stmtFind4(l.v)&&stmtFind4(l.v).val.includes(':vc:')?stmtFind4(l.v).val.split(':vc:')[1]:''):vid;if(lv)o.vc=lv;
     if(l.inst){const left=l.inst.n-l.inst.k+1;o.inst=left;o.amt=l.amt*left;o.note=l.desc+' (kalan taksitler)'}
     if(l.sub&&l.cat==='Araba')o.sub=l.sub;
     if(l.cat==='Araba'&&S.cars.length===1)o.car=S.cars[0].id;
@@ -690,12 +717,18 @@ function syInfo(){const el=$('#sy_info');if(!el||!sy)return;
   const sv=($('#sy_card')||{}).value||sy.card,[cid,vid]=sv.split(':vc:'),card=find(S.cards,cid);if(!card)return;
   const p=syPlan(card,vid,sy.kind,sy.lines),tot=sum(sy.lines.filter(l=>l.kind==='charge'),l=>l.inst?l.amt:l.amt),addAmt=sum(p.add,t=>t.amt/(t.inst||1));
   const nm=vid?(vcOf(card,vid)||{}).name+' (sanal kart)':card.name+' (ana kart)';
-  el.innerHTML=`<div class="prev"><b>${sy.lines.length} satır okundu</b> (${fmt(tot)}). Aktarılacak kart: <b>${esc(nm)}</b>.<br>Eklenecek: <b>${p.add.length}</b> satır${p.skip.length?` · zaten kayıtlı olduğu için atlanacak: ${p.skip.length}`:''}${p.drop.length?` · bu dönemden önce aktarılan ${p.drop.length} satır yenisiyle değiştirilecek`:''}.</div>${sy.kind==='last'&&!vid?'<div class="prev warn" style="margin-top:8px"><b>Kesilmiş ekstre:</b> aşağıdaki <b>Son ekstreden kalan borç</b> kutusunu doldurman gerekiyor. Excel\'de ekstre borcu yazmaz; devreden borç ve faiz bankadan gelir.</div>':''}`;
+  const mt=sy.meta?`<div class="note" style="margin:0 0 8px">PDF: dönem borcu <b>${fmt(sy.meta.debt||0)}</b> · asgari ${fmt(sy.meta.min||0)}${sy.meta.cut?' · kesim '+dshort(pd(sy.meta.cut)):''}${sy.meta.due?' · son ödeme '+dshort(pd(sy.meta.due)):''}. Kutuya dönem borcu yazıldı; ekstre kesildikten sonra ödeme yaptıysan düşerek düzelt.</div>`:'';
+  el.innerHTML=mt+`<div class="prev"><b>${sy.lines.length} satır okundu</b> (${fmt(tot)}). Aktarılacak kart: <b>${esc(nm)}</b>.<br>Eklenecek: <b>${p.add.length}</b> satır${p.skip.length?` · zaten kayıtlı olduğu için atlanacak: ${p.skip.length}`:''}${p.drop.length?` · bu dönemden önce aktarılan ${p.drop.length} satır yenisiyle değiştirilecek`:''}.</div>${sy.kind==='last'&&!vid?'<div class="prev warn" style="margin-top:8px"><b>Kesilmiş ekstre:</b> aşağıdaki <b>Son ekstreden kalan borç</b> kutusunu doldurman gerekiyor. Excel\'de ekstre borcu yazmaz; devreden borç ve faiz bankadan gelir.</div>':''}`;
   document.querySelectorAll('#sy_kind .chip').forEach(c=>c.classList.toggle('on',c.dataset.v===sy.kind))}
 document.addEventListener('change',async e=>{
   if(e.target.id==='sy_card'){syInfo();return}
   if(e.target.id!=='sy_file')return;const f=e.target.files[0];if(!f||!sy)return;
-  try{if(!/\.(xls|xlsx|csv)$/i.test(f.name)){toast('Excel (.xls, .xlsx veya .csv) dosyası seç');return}
+  try{if(/\.pdf$/i.test(f.name)||f.type==='application/pdf'){toast('PDF okunuyor…');const r=syParsePdf(await pdfToText(f));
+      if(!r.lines.length){toast('PDF\'ten harcama satırı okunamadı. Excel dosyasını dene');return}
+      sy.lines=r.lines;sy.kind='last';sy.meta=r.meta;sy.pdf=true;const mm=stmtFind4(r.meta.last4);if(mm&&$('#sy_card'))$('#sy_card').value=mm.val;
+      const e=$('#sy_stmt');if(e&&r.meta.debt)e.value=nv(r.meta.debt);syInfo();return}
+    if(!/\.(xls|xlsx|csv)$/i.test(f.name)){toast('Excel (.xls, .xlsx, .csv) veya PDF dosyası seç');return}
+    sy.pdf=false;sy.meta=null;
     toast('Dosya okunuyor…');const rows=await sheetToRows(f),secs=Stmt.parseTable(rows),lines=[].concat(...secs.map(x=>x.lines));
     if(!lines.length){toast('Dosyada harcama satırı bulunamadı');return}
     sy.lines=lines;sy.kind=syKind(rows);const l4=(secs.find(x=>x.last4)||{}).last4,m=stmtFind4(l4);
@@ -704,7 +737,7 @@ document.addEventListener('change',async e=>{
 A.syKind=d=>{if(!sy)return;sy.kind=d.v;syInfo()};
 A.syOpen=d=>{const c=find(S.cards,d.id);if(!c)return;sy={card:c.id,lines:null,kind:'open'};
   openSheet({title:esc(c.name)+' · bankadan güncelle',body:`<div class="note" style="margin-top:0">Bankanın internet şubesinden <b>Dönem içi işlemler</b> veya <b>Ekstre</b> Excel'ini indirip seç. Dosya telefondan çıkmaz. Aynı dönemi tekrar yüklersen eski satırlar yenileriyle değiştirilir, çift sayılmaz.</div>
-   <label class="f"><span>Excel dosyası</span><input id="sy_file" type="file" accept=".xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"></label>
+   <label class="f"><span>Excel veya PDF dosyası</span><input id="sy_file" type="file" accept=".xls,.xlsx,.csv,.pdf,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"></label>
    <div id="sy_info"></div>
    <label class="f"><span>Bu dosya hangi karta ait? (ana kart ve sanal kartın dosyaları ayrıdır)</span><select id="sy_card">${syCardOpts(c)}</select></label>
    <div class="f"><span>Dosya ne?</span><div class="chips" id="sy_kind"><button type="button" class="chip" data-act="syKind" data-v="open">Dönem içi (bu ay)</button><button type="button" class="chip" data-act="syKind" data-v="last">Kesilmiş ekstre</button></div></div>
