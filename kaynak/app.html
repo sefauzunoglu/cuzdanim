@@ -204,7 +204,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=50;
+const KEY='cuzdanim_v1',VER=51;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -672,7 +672,7 @@ function syParsePdf(text){
     else if(!meta.debt&&(m=/Dönem Borcunuz\s+([\d.]+,\d{2})/i.exec(r)))meta.debt=num(m[1]);
     else if(!meta.min&&(m=/Min\.? Ödeme Tutarı\s+([\d.]+,\d{2})/i.exec(r)))meta.min=num(m[1]);
     else if(!meta.last4&&(m=/Kart Numarası\s+\d{4} \d{2}\*+ \*+ (\d{4})/i.exec(r)))meta.last4=m[1];
-    else if(m=/SANAL KART BİLGİLERİN[İI]Z.*?(\d{4})\s*(?:bosl\w*)?$/i.exec(r))sec=m[1];
+    else if(m=/SANAL KART BİLGİLERİN[İI]Z.*?(\d{4})\s*(?:bosl\w*)?$/i.exec(r)){sec=m[1];head=''}
     else if(!meta.devir&&(m=/ÖNCEKİ DÖNEMDEN DEVİR EDİLEN TUTAR\s+([\d.]+,\d{2})/i.exec(r)))meta.devir=num(m[1]);
     else if(m=/^(\d{1,2}) ([A-Za-zÇĞİÖŞÜçğıöşü]+) (\d{4}) (.+)$/.exec(r)){
       const date=dIso(m[1],m[2],m[3]);if(!date)return;let rest=m[4].replace(/\s*bosluk\s*$/i,'');
