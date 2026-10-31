@@ -215,7 +215,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=38;
+const KEY='cuzdanim_v1',VER=39;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -568,6 +568,7 @@ function vCardDetail(){
   return `<header class="top"><button class="ib" data-act="back" aria-label="Geri">${ico('back')}</button><h1>${esc(c.name)}<small>Kesim ${c.cutoff}. gün · Son ödeme ${c.due}. gün · Asgari %${i.minRate} · Faiz %${pc(i.rate)}/ay</small></h1><button class="ib" data-act="editCard" data-id="${c.id}" aria-label="Düzenle">${ico('gear')}</button></header>
   <div class="cardtile"><div class="cn"><span>Güncel borç</span><span class="num">${fmtI(i.currentDebt)}</span></div><div style="margin:10px 0 2px">${barPct(i.util)}</div><div style="font-size:12px;opacity:.7" class="num">Limit ${fmtI(c.limit)} · Kullanılan ${fmtI(i.used)} · Kalan ${fmtI(i.avail)}</div>
    <div class="g"><div><span>${i.pastDue?'Devreden borç (son ödeme '+dshort(i.due)+' geçti)':i.closedDebt>0.5?'Ödenecek ekstre (son ödeme '+dshort(i.due)+')':'Ödenecek ekstre'}</span><b class="num">${fmtI(i.closedDebt)}</b></div><div><span>Bu dönem harcaması (${dshort(i.nextCut)} kesilir)</span><b class="num">${fmtI(i.openDebt)}</b></div><div><span>Kalan taksitler</span><b class="num">${fmtI(i.future)}</b></div><div><span>Sonraki ekstre tahmini</span><b class="num">${fmtI(i.nextEst)}</b></div></div></div>
+  ${!(+c.openDebt>0)&&S.tx.some(t=>t.src==='card:'+c.id&&t.hist)?`<div class="prev warn" style="margin:10px 0"><b>Kesilmiş ekstre borcunu yazmadın.</b> Kalan limit olduğundan yüksek görünüyor. <b>Bankadan güncelle</b> ekranında <b>Son ekstreden kalan borç</b> kutusuna bankadaki tutarı yaz.</div>`:''}
   <div class="btns"><button class="btn pri" data-act="payCard" data-id="${c.id}">Kart borcu öde</button><button class="btn" data-act="newOn" data-id="${c.id}">Bu karta harcama</button></div>
   <div class="btns" style="margin-top:8px"><button class="btn" data-act="syOpen" data-id="${c.id}">Bankadan güncelle (Excel)</button></div>
   ${(c.vcards||[]).length?`<section><h2>Sanal kartlar</h2><div class="card">${c.vcards.map((v,k)=>{const cur=ch.filter(x=>x.idx===i.cur&&x.tx.vc===v.id),prev=ch.filter(x=>x.idx===i.cur-1&&x.tx.vc===v.id);return `<div class="row">${av(v.name)}<div class="mid"><div class="t">${esc(v.name)}</div><div class="s">${v.last4?'•••• '+esc(v.last4)+' · ':''}açık dönem ${fmtI(sum(cur,x=>x.amt))} · önceki ekstre ${fmtI(sum(prev,x=>x.amt))}</div></div><div class="amt num">${fmtI(sum(ch.filter(x=>x.tx.vc===v.id&&x.idx<=i.cur),x=>x.amt))}<small>toplam</small></div></div>`}).join('')}</div><div class="note">Sanal kartların harcamaları bu kartın borcuna ve limitine dahildir; burada ayrıca gruplanır.</div></section>`:''}
@@ -689,7 +690,7 @@ function syInfo(){const el=$('#sy_info');if(!el||!sy)return;
   const sv=($('#sy_card')||{}).value||sy.card,[cid,vid]=sv.split(':vc:'),card=find(S.cards,cid);if(!card)return;
   const p=syPlan(card,vid,sy.kind,sy.lines),tot=sum(sy.lines.filter(l=>l.kind==='charge'),l=>l.inst?l.amt:l.amt),addAmt=sum(p.add,t=>t.amt/(t.inst||1));
   const nm=vid?(vcOf(card,vid)||{}).name+' (sanal kart)':card.name+' (ana kart)';
-  el.innerHTML=`<div class="prev"><b>${sy.lines.length} satır okundu</b> (${fmt(tot)}). Aktarılacak kart: <b>${esc(nm)}</b>.<br>Eklenecek: <b>${p.add.length}</b> satır${p.skip.length?` · zaten kayıtlı olduğu için atlanacak: ${p.skip.length}`:''}${p.drop.length?` · bu dönemden önce aktarılan ${p.drop.length} satır yenisiyle değiştirilecek`:''}.</div>`;
+  el.innerHTML=`<div class="prev"><b>${sy.lines.length} satır okundu</b> (${fmt(tot)}). Aktarılacak kart: <b>${esc(nm)}</b>.<br>Eklenecek: <b>${p.add.length}</b> satır${p.skip.length?` · zaten kayıtlı olduğu için atlanacak: ${p.skip.length}`:''}${p.drop.length?` · bu dönemden önce aktarılan ${p.drop.length} satır yenisiyle değiştirilecek`:''}.</div>${sy.kind==='last'&&!vid?'<div class="prev warn" style="margin-top:8px"><b>Kesilmiş ekstre:</b> aşağıdaki <b>Son ekstreden kalan borç</b> kutusunu doldurman gerekiyor. Excel\'de ekstre borcu yazmaz; devreden borç ve faiz bankadan gelir.</div>':''}`;
   document.querySelectorAll('#sy_kind .chip').forEach(c=>c.classList.toggle('on',c.dataset.v===sy.kind))}
 document.addEventListener('change',async e=>{
   if(e.target.id==='sy_card'){syInfo();return}
@@ -714,6 +715,7 @@ A.syOpen=d=>{const c=find(S.cards,d.id);if(!c)return;sy={card:c.id,lines:null,ki
    saveLabel:'Güncelle',
    save(){if(!sy.lines){toast('Önce Excel dosyasını seç');return false}
      const sv=$('#sy_card').value,[cid,vid]=sv.split(':vc:'),card=find(S.cards,cid);if(!card)return false;
+     if(sy.kind==='last'&&!vid&&!(N('sy_stmt')>0)&&!(+card.openDebt>0)){toast('Kesilmiş ekstre için "Son ekstreden kalan borç" kutusunu doldur, yoksa borç eksik kalır');return false}
      const p=syPlan(card,vid,sy.kind,sy.lines);
      S.tx=S.tx.filter(t=>!p.drop.includes(t)&&!p.autoDrop.includes(t)).concat(p.add);
      [...p.drop,...p.autoDrop].forEach(t=>Object.keys(S.recPaid).forEach(k=>{if(S.recPaid[k]===t.id)delete S.recPaid[k]}));
