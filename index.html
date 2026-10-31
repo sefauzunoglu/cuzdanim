@@ -221,12 +221,13 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=44;
+const KEY='cuzdanim_v1',VER=46;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
   return mem?Object.assign(emptyData(),JSON.parse(mem)):emptyData()}
 let S=load();
+(((S.cfg||{}).cats)||[]).forEach(n=>{if(!CATS.includes(n))CATS.push(n)});
 S.cards.forEach(c=>{if(!c.since){const ds=S.tx.filter(t=>t.src==='card:'+c.id).map(t=>t.date).sort();c.since=ds[0]||iso(new Date())}});
 S.debts.forEach(d=>{if(d.type==='gold'&&!d.gold){d.gold={gram:+d.remGrams||0};delete d.remGrams}});
 if(S.cfg.goldPrice&&!S.cfg.gold){S.cfg.gold={gram:S.cfg.goldPrice};delete S.cfg.goldPrice}
@@ -583,7 +584,8 @@ function vCardDetail(){
   ${(()=>{const tab=ui.ctab;
     const chipsFor=(items,cat,amt)=>{const m={};items.forEach(x=>m[cat(x)]=(m[cat(x)]||0)+amt(x));const e=Object.entries(m).sort((x,y)=>y[1]-x[1]);return e.length>1?`<div class="chips scroll" style="margin:10px 0 6px">${e.map(([n,v])=>`<button class="chip ${ui.ccat===n?'on':''}" data-act="ccat" data-v="${esc(n)}">${n} · ${fmtI(v)}</button>`).join('')}</div>`:''};
     const listTab=(items,title,range,emptyT)=>{const tot=sum(items,x=>x.amt),shown=ui.ccat?items.filter(x=>x.tx.cat===ui.ccat):items;
-      return `<section><h2>${title}<span class="num">${fmtI(tot)}</span></h2><div class="note" style="margin:-4px 0 4px">${range}</div>${chipsFor(items,x=>x.tx.cat,x=>x.amt)}<div class="card">${shown.length?shown.map(row).join(''):empty(emptyT,'')}</div></section>`};
+      const unc=S.tx.filter(t=>t.src==='card:'+c.id&&t.cat==='Diğer');
+      return `<section><h2>${title}<span class="num">${fmtI(tot)}</span></h2><div class="note" style="margin:-4px 0 4px">${range}</div>${unc.length?`<button class="btn sm" style="width:100%;margin:6px 0" data-act="kcOpen" data-id="${c.id}">Kategorisi belirsiz: ${unc.length} işlem · ${fmtI(sum(unc,t=>t.amt))} · düzenle</button>`:''}${chipsFor(items,x=>x.tx.cat,x=>x.amt)}<div class="card">${shown.length?shown.map(row).join(''):empty(emptyT,'')}</div></section>`};
     if(tab==='cur'){return listTab(ch.filter(x=>x.idx===i.cur).sort((x,y)=>pd(y.tx.date)-pd(x.tx.date)),'Bu dönem',dshort(a)+' – '+dshort(b)+' · taksit parçaları dahil','Bu dönem harcama yok')}
     if(tab==='prev'){const [ps,pe]=stmtRange(c,i.cur-1);return listTab(ch.filter(x=>x.idx===i.cur-1).sort((x,y)=>pd(y.tx.date)-pd(x.tx.date)),'Önceki ekstre',dshort(ps)+' – '+dshort(pe),'Önceki ekstrede harcama yok')}
     if(tab==='inst'){const items=act.filter(x=>!ui.ccat||x.t.cat===ui.ccat),mon=sum(act,x=>x.t.amt/x.t.inst),left=sum(act,x=>x.t.amt/x.t.inst*x.left);
@@ -722,7 +724,8 @@ function syPlan(card,vid,kind,lines){
     const lv=l.v!==undefined?(l.v&&stmtFind4(l.v)&&stmtFind4(l.v).val.includes(':vc:')?stmtFind4(l.v).val.split(':vc:')[1]:''):vid;if(lv)o.vc=lv;
     if(l.inst){const left=l.inst.n-l.inst.k+1;o.inst=left;o.amt=l.amt*left;o.note=l.desc+' (kalan taksitler)'}
     if(l.sub&&l.cat==='Araba')o.sub=l.sub;
-    if(l.cat==='Araba'&&S.cars.length===1)o.car=S.cars[0].id;
+    {const ru=ruleFor(l.desc);if(ru){o.cat=ru.cat;if(ru.cat!=='Araba')delete o.sub}}
+    if(o.cat==='Araba'&&S.cars.length===1)o.car=S.cars[0].id;
     if(kind==='open'){o.imp=key;if(l.date<psIso)o.sd=psIso}else{o.hist=true;if(cutSd&&l.inst)o.sd=cutSd}
     if(rm){o.rec=rm.r.id;matches.push({o,r:rm.r,k:rm.k})}
     add.push(o)});
@@ -778,6 +781,30 @@ A.syOpen=d=>{const c=find(S.cards,d.id);if(!c)return;sy={card:c.id,lines:null,ki
      const inf=cardInfo(card);let msg=p.add.length+' satır eklendi'+(p.skip.length?', '+p.skip.length+' kayıtlı satır atlandı':'')+(p.matches.length?', '+p.matches.length+' sabit gider ödendi sayıldı':'')+(p.fixes.length?', '+p.fixes.length+' taksit bankanın dönemine oturtuldu':'');
      if(av>0&&card.limit>0)msg+=`. Kalan limit: uygulama ${fmtI(inf.avail)}, banka ${fmtI(av)}`;
      save();toast(msg)}})};
+/* ============ toplu kategorileme ============ */
+const mKey=d=>stmtRoot(d).replace(/İ/g,'I').split(' ').filter(Boolean).slice(0,3).join(' ');
+const ruleFor=d=>{const k=mKey(d);return ((S.cfg||{}).rules||[]).find(r=>r.k===k)};
+let kcCat='';
+A.kcSel=d=>{kcCat=d.v;const n=$('#kc_new');if(n)n.value='';$$('#kc_chips .chip').forEach(c=>c.classList.toggle('on',c.dataset.v===kcCat))};
+A.kcAll=d=>{$$('.kc_g').forEach(e=>e.checked=d.on==='1')};
+A.kcOpen=d=>{const c=find(S.cards,d.id);if(!c)return;kcCat='';
+  const g={};S.tx.filter(t=>t.src==='card:'+c.id&&t.cat==='Diğer').forEach(t=>{const k=mKey(t.note||'');if(!k)return;const x=g[k]||(g[k]={k,name:(t.note||'').replace(/ ?\(kalan taksitler\)/,''),n:0,tot:0});x.n++;x.tot+=t.amt/(t.inst||1)*(t.inst||1)});
+  const gs=Object.values(g).sort((a,b)=>b.tot-a.tot);
+  if(!gs.length){toast('Kategorisi belirsiz işlem yok');return}
+  openSheet({title:'Kategorisi belirsiz işlemler',body:`<div class="note" style="margin-top:0">Aynı işyerleri birlikte gelir. Önce kategoriyi seç (veya yeni ad yaz), sonra işyerlerini işaretle.</div>
+   <div class="f"><span>1. Hangi kategori?</span><div class="chips scroll" id="kc_chips">${CATS.filter(n=>n!=='Diğer').map(n=>`<button type="button" class="chip" data-act="kcSel" data-v="${esc(n)}">${n}</button>`).join('')}</div></div>
+   ${fld('kc_new','veya yeni kategori adı','',{ph:'örn. Kuruyemiş'})}
+   <label class="row" style="cursor:pointer;border:0"><input type="checkbox" id="kc_rule" checked style="width:22px;height:22px;flex:none"><div class="mid"><div class="t">Bu işyerlerini hep bu kategoriye koy</div><div class="s">Sonraki Excel ve PDF aktarmalarında otomatik uygulanır</div></div></label>
+   <div class="f" style="margin:10px 0 4px"><span>2. Hangi işyerleri?</span></div><div class="chips" style="margin-bottom:6px"><button type="button" class="chip" data-act="kcAll" data-on="1">Tümünü seç</button><button type="button" class="chip" data-act="kcAll" data-on="0">Hiçbirini seçme</button></div>
+   <div class="card" style="padding:4px 12px">${gs.map(x=>`<label class="row" style="cursor:pointer"><input type="checkbox" class="kc_g" data-k="${esc(x.k)}" style="width:22px;height:22px;flex:none"><div class="mid"><div class="t">${esc(x.name)}</div><div class="s">${x.n} işlem</div></div><div class="amt num">${fmtI(x.tot)}</div></label>`).join('')}</div>`,
+   saveLabel:'Kategorile',
+   save(){const keys=$$('.kc_g').filter(e=>e.checked).map(e=>e.dataset.k);if(!keys.length){toast('Önce işyerlerini işaretle');return false}
+     const nn=(($('#kc_new')||{}).value||'').trim().slice(0,20);let cat=kcCat;
+     if(nn){const ex=CATS.find(x=>x.toLocaleLowerCase('tr-TR')===nn.toLocaleLowerCase('tr-TR'));cat=ex||nn;if(!ex){CATS.push(nn);(S.cfg.cats=S.cfg.cats||[]).push(nn)}}
+     if(!cat){toast('Bir kategori seç veya yeni ad yaz');return false}
+     let n=0;S.tx.forEach(t=>{if(t.cat==='Diğer'&&keys.includes(mKey(t.note||''))){t.cat=cat;if(cat!=='Araba')delete t.sub;n++}});
+     if($('#kc_rule').checked){S.cfg.rules=S.cfg.rules||[];keys.forEach(k=>{const r=S.cfg.rules.find(x=>x.k===k);if(r)r.cat=cat;else S.cfg.rules.push({k,cat})})}
+     save();toast(n+' işlem '+cat+' kategorisine taşındı')}})};
 /* Taksit satırı: banka her ay k/n'yi ve birkaç kuruş farklı tutarı yazar; açıklama köküyle eşleştir */
 const stmtRoot=x=>String(x||'').toUpperCase().replace(/\(KALAN TAKS[^)]*\)/g,' ').replace(/\(\d+\/\d+\)/g,' ').replace(/\s+/g,' ').trim();
 const stmtDupPred=(card,l)=>t=>{if(t.src!=='card:'+card.id)return false;const per=t.amt/(t.inst||1);
