@@ -198,7 +198,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=41;
+const KEY='cuzdanim_v1',VER=42;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -680,9 +680,13 @@ const recFor=(card,desc)=>{const d=recKey(desc);return S.recurring.find(r=>{if(r
 function syPlan(card,vid,kind,lines){
   const cur=cardInfo(card).cur,key='open:'+(vid||'main'),psIso=iso(stmtRange(card,cur)[0]);
   const drop=kind==='open'?S.tx.filter(t=>t.src==='card:'+card.id&&t.imp===key&&stmtIdx(card,t.sd||t.date)>=cur):[];
-  const pool=S.tx.filter(t=>!drop.includes(t)),add=[],skip=[],autoDrop=[],matches=[];
+  /* Ekstre PDF'inde kesim tarihi bellidir: o ekstredeki taksitler bankanın dönemine oturtulur (kesim günü kayması taksit parçalarını bir ay kaydırmasın) */
+  const cutSd=kind==='last'&&sy&&sy.meta&&sy.meta.cut?sy.meta.cut:'';
+  const pool=S.tx.filter(t=>!drop.includes(t)),add=[],skip=[],autoDrop=[],matches=[],fixes=[];
   lines.forEach(l=>{if(l.kind!=='charge')return;
-    if((l.inst||kind==='last')&&stmtDupOf(card,l,pool)){skip.push(l);return}
+    if((l.inst||kind==='last')&&stmtDupOf(card,l,pool)){
+      if(l.inst&&cutSd){const ex=pool.find(stmtDupPred(card,l));if(ex&&ex.inst===l.inst.n-l.inst.k+1&&ex.sd!==cutSd)fixes.push(ex)}
+      skip.push(l);return}
     let rm=null;if(!l.inst){const r=recFor(card,l.desc);if(r){const k=r.id+'|'+ymOf(pd(l.date)),ex=S.recPaid[k]?find(S.tx,S.recPaid[k]):null;
       if(ex&&!ex.auto&&!drop.includes(ex)){skip.push(l);return}
       if(ex&&ex.auto)autoDrop.push(ex);rm={r,k}}}
@@ -691,10 +695,10 @@ function syPlan(card,vid,kind,lines){
     if(l.inst){const left=l.inst.n-l.inst.k+1;o.inst=left;o.amt=l.amt*left;o.note=l.desc+' (kalan taksitler)'}
     if(l.sub&&l.cat==='Araba')o.sub=l.sub;
     if(l.cat==='Araba'&&S.cars.length===1)o.car=S.cars[0].id;
-    if(kind==='open'){o.imp=key;if(l.date<psIso)o.sd=psIso}else o.hist=true;
+    if(kind==='open'){o.imp=key;if(l.date<psIso)o.sd=psIso}else{o.hist=true;if(cutSd&&l.inst)o.sd=cutSd}
     if(rm){o.rec=rm.r.id;matches.push({o,r:rm.r,k:rm.k})}
     add.push(o)});
-  return {drop,add,skip,psIso,cur,autoDrop,matches}}
+  return {drop,add,skip,psIso,cur,autoDrop,matches,fixes,cutSd}}
 function syInfo(){const el=$('#sy_info');if(!el||!sy)return;
   if(!sy.lines){el.innerHTML='';return}
   const sv=($('#sy_card')||{}).value||sy.card,[cid,vid]=sv.split(':vc:'),card=find(S.cards,cid);if(!card)return;
@@ -735,11 +739,12 @@ A.syOpen=d=>{const c=find(S.cards,d.id);if(!c)return;sy={card:c.id,lines:null,ki
      const p=syPlan(card,vid,sy.kind,sy.lines);
      S.tx=S.tx.filter(t=>!p.drop.includes(t)&&!p.autoDrop.includes(t)).concat(p.add);
      [...p.drop,...p.autoDrop].forEach(t=>Object.keys(S.recPaid).forEach(k=>{if(S.recPaid[k]===t.id)delete S.recPaid[k]}));
+     p.fixes.forEach(t=>{t.sd=p.cutSd});
      p.matches.forEach(m=>{S.recPaid[m.k]=m.o.id;if(S.recSkip)delete S.recSkip[m.k];if(Math.abs(m.o.amt-m.r.amt)>.5)m.r.amt=m.o.amt});
      const eb=N('sy_stmt'),od=0;
      if(eb>0){const paidAll=sum(S.cardPay.filter(x=>x.card===card.id),x=>x.amt);card.openDebt=Math.max(0,eb-od)+paidAll;card.since=p.psIso}
      const av=N('sy_avail');if(av>0)card.cmpAvail=av;
-     const inf=cardInfo(card);let msg=p.add.length+' satır eklendi'+(p.skip.length?', '+p.skip.length+' kayıtlı satır atlandı':'')+(p.matches.length?', '+p.matches.length+' sabit gider ödendi sayıldı':'');
+     const inf=cardInfo(card);let msg=p.add.length+' satır eklendi'+(p.skip.length?', '+p.skip.length+' kayıtlı satır atlandı':'')+(p.matches.length?', '+p.matches.length+' sabit gider ödendi sayıldı':'')+(p.fixes.length?', '+p.fixes.length+' taksit bankanın dönemine oturtuldu':'');
      if(av>0&&card.limit>0)msg+=`. Kalan limit: uygulama ${fmtI(inf.avail)}, banka ${fmtI(av)}`;
      save();toast(msg)}})};
 /* Taksit satırı: banka her ay k/n'yi ve birkaç kuruş farklı tutarı yazar; açıklama köküyle eşleştir */
