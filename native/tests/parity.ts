@@ -18,7 +18,7 @@ const OLD_FN = `(() => {
   const fc=freeCash();
   return {
     totals:{cardDebt:r2(t.cardDebt),inst:r2(t.inst),other:r2(t.other),total:r2(t.total),cash:r2(t.cash),gunDebt:r2(t.gunDebt)},
-    cards:S.cards.map(c=>{const i=cardInfo(c);return {name:c.name,currentDebt:r2(i.currentDebt),closedDebt:r2(i.closedDebt),openDebt:r2(i.openDebt),future:r2(i.future),avail:r2(i.avail),min:r2(i.min),nextEst:r2(i.nextEst),rate:i.rate,minRate:i.minRate,carryInt:r2(i.carryInt),dueIn:i.dueIn,util:r2(i.util*100)}}),
+    cards:S.cards.map(c=>{const i=cardInfo(c);return {name:c.name,currentDebt:r2(i.currentDebt),closedDebt:r2(i.closedDebt),openDebt:r2(i.openDebt),future:r2(i.future),avail:r2(i.avail),min:r2(i.min),nextEst:r2(i.nextEst),rate:i.rate,minRate:i.minRate,carryInt:r2(i.carryInt),dueIn:i.dueIn,util:r2(i.util*100),pastDue:i.pastDue,devir:r2(i.devir),faiz:r2(i.interestNext),nextMin:r2(i.nextMin)}}),
     acc:S.accounts.map(a=>[a.name,r2(accBal(a))]),
     up:upcoming(30).map(u=>[u.t,r2(u.amt),u.k,daysTo(u.d),u.out]),
     fc:{inc:r2(fc.inc),fixed:r2(fc.fixed),ins:r2(fc.ins),debtM:r2(fc.debtM),vari:r2(fc.vari),free:r2(fc.free)},
@@ -37,7 +37,7 @@ function newSummary(S: core.State) {
   const fc = core.freeCash(S);
   return {
     totals: { cardDebt: r2(t.cardDebt), inst: r2(t.inst), other: r2(t.other), total: r2(t.total), cash: r2(t.cash), gunDebt: r2(t.gunDebt) },
-    cards: S.cards.map((c) => { const i = core.cardInfo(S, c); return { name: c.name, currentDebt: r2(i.currentDebt), closedDebt: r2(i.closedDebt), openDebt: r2(i.openDebt), future: r2(i.future), avail: r2(i.avail), min: r2(i.min), nextEst: r2(i.nextEst), rate: i.rate, minRate: i.minRate, carryInt: r2(i.carryInt), dueIn: i.dueIn, util: r2(i.util * 100) }; }),
+    cards: S.cards.map((c) => { const i = core.cardInfo(S, c); return { name: c.name, currentDebt: r2(i.currentDebt), closedDebt: r2(i.closedDebt), openDebt: r2(i.openDebt), future: r2(i.future), avail: r2(i.avail), min: r2(i.min), nextEst: r2(i.nextEst), rate: i.rate, minRate: i.minRate, carryInt: r2(i.carryInt), dueIn: i.dueIn, util: r2(i.util * 100), pastDue: i.pastDue, devir: r2(i.devir), faiz: r2(i.interestNext), nextMin: r2(i.nextMin) }; }),
     acc: S.accounts.map((a) => [a.name, r2(core.accBal(S, a))]),
     up: core.upcoming(S, 30).map((u) => [u.t, r2(u.amt), u.k, core.daysTo(u.d), u.out]),
     fc: { inc: r2(fc.inc), fixed: r2(fc.fixed), ins: r2(fc.ins), debtM: r2(fc.debtM), vari: r2(fc.vari), free: r2(fc.free) },
@@ -63,6 +63,37 @@ function diff(a: any, b: any, path = ''): string[] {
   return a === b ? [] : [`${path}: eski=${JSON.stringify(a)} yeni=${JSON.stringify(b)}`];
 }
 
+/** Bankadan güncelle: PDF ayrıştırma ve işyeri/sabit gider yardımcıları PWA ile aynı çıktıyı vermeli. */
+const FIX_PDF = `Kart Numarası 4043 08** **** 1111
+Hesap Kesim Tarihi 30 Ekim 2026
+Son Ödeme Tarihi: 09 Kasım 2026
+Dönem Borcunuz 20.000,00 TL
+Min. Ödeme Tutarı 8.000,00 TL
+ÖNCEKİ DÖNEMDEN DEVİR EDİLEN TUTAR 10.000,00
+01 Ekim 2026 ÖDEMENİZ İÇİN TEŞEKKÜR EDERİZ 2.000,00+
+03 Ekim 2026 SHELL TEST 0,12 400,00
+05 Ekim 2026 MANGO TEST 874,97x2=1.749,94 1.Taksit 1,57 874,97
+29 Eylül 2026 ECZANE TEST 337,54x3=1.012,62 1.Taksit 337,54
+Giyim Kadın, Erkek ve Aile
+12 Ekim 2026 BURAK TEST 230,70
+14 Ekim 2026 NETFLIX.COM 389,99 TL 390,00
+BONUS SANAL KART BİLGİLERİNİZ: AD SOYAD / 5440 78** **** 2222
+10 Ekim 2026 AXA TEST 2.575,25x6=15.451,53 2.Taksit 2.575,25
+02 Ekim 2026 UBER TEST YEMEK 393,90`;
+const SAMPLES = ['APPLE.COM/BILL 200,00 TL', 'Int. Taksitli Nakit Avans (kalan taksitler)', 'TÜRKİYE SİGORTA (2/9) İSTANBUL', 'IYZICO *AMAZON.COM.T', 'Google YouTubePremium 239,99 TL', 'MİGROS-151202-GAZİOSMANPA'];
+async function syncParity(browser: any): Promise<number> {
+  const page = await browser.newPage();
+  await page.goto('file://' + HTML);
+  const old = await page.evaluate(`(() => { const r = syParsePdf(${JSON.stringify(FIX_PDF)}); return { meta: r.meta, lines: r.lines.map(l => [l.date, l.desc, l.amt, l.cat, l.sub || '', l.inst ? l.inst.k + '/' + l.inst.n : '', l.v]), keys: ${JSON.stringify(SAMPLES)}.map(x => [mKey(x), mNice(x), recKey(x), mClean(x)]) }; })()`);
+  const r = core.parseGarantiPdf(FIX_PDF);
+  const neu = { meta: r.meta, lines: r.lines.map((l) => [l.date, l.desc, l.amt, l.cat, l.sub || '', l.inst ? l.inst.k + '/' + l.inst.n : '', l.v]), keys: SAMPLES.map((x) => [core.mKey(x), core.mNice(x), core.recKey(x), core.mClean(x)]) };
+  const errs = diff(old, neu);
+  await page.close();
+  if (errs.length) { console.log(`FARK bankadan güncelle: ${errs.length} fark`); errs.slice(0, 15).forEach((e) => console.log('  ' + e)); return 1; }
+  console.log(`AYNI bankadan güncelle: ${neu.lines.length} PDF satırı, ${SAMPLES.length} işyeri örneği`);
+  return 0;
+}
+
 async function main() {
   const browser = await chromium.launch();
   let failed = 0;
@@ -83,6 +114,7 @@ async function main() {
     else console.log(`AYNI ${label}: kart=${newRes.cards.length} öneri=${newRes.advice.length} yaklaşan=${newRes.up.length} toplam borç=${newRes.totals.total}`);
     await page.close();
   }
+  failed += await syncParity(browser);
   await browser.close();
   return failed;
   

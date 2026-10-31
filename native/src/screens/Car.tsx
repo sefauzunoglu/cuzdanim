@@ -9,7 +9,7 @@ import { Screen } from '../ui/chrome';
 import { Icon } from '../ui/icons';
 
 export function Car() {
-  const { S } = useApp(), nav = useNav(), t = useTheme();
+  const { S, update, toast } = useApp(), nav = useNav(), t = useTheme();
   const [form, setForm] = useState<{ id?: string } | null>(null);
   const cm = core.ymOf(new Date());
   const mini = (l: string, v: string) => <View style={{ flex: 1, backgroundColor: t.surface2, borderRadius: 14, padding: 10 }}><Text style={{ color: t.muted, fontSize: 11 }}>{l}</Text><Text style={[{ color: t.ink, fontWeight: '700', fontSize: 16 }, FONT_NUM]}>{v}</Text></View>;
@@ -32,6 +32,12 @@ export function Car() {
                 {rem.length ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 10 }}>{rem}</View> : null}
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>{mini('Bu ay', core.fmtI(core.sum(mo, (x) => x.amt)))}{mini('Son 12 ay', core.fmtI(core.sum(yr, (x) => x.amt)))}{mini(span ? '₺/km' : 'Karttan', span ? core.fmt(core.sum(tx, (x) => x.amt) / span) : core.fmtI(onCard))}</View>
                 {Object.keys(by).length ? <View style={{ marginTop: 10 }}>{Object.entries(by).sort((a, b) => b[1] - a[1]).map(([n, v]) => <View key={n} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}><Text style={{ color: t.ink, fontSize: 13.5 }}>{n}</Text><Text style={[{ color: t.ink, fontWeight: '700' }, FONT_NUM]}>{core.fmtI(v)}</Text></View>)}</View> : null}
+                {(() => { const u = core.unlinkedCarTx(S); return u.length ? (
+                  <View style={{ backgroundColor: t.accentSoft, borderRadius: 12, padding: 10, marginTop: 10 }}>
+                    <Text style={{ color: t.ink, fontSize: 13.5, marginBottom: 8 }}>Kategorisi <Text style={{ fontWeight: '800' }}>Araba</Text> olup arabaya bağlı olmayan <Text style={{ fontWeight: '800' }}>{u.length}</Text> harcama var ({core.fmtI(core.sum(u, (x) => x.amt))}), örneğin bankadan aktardığın yakıt işlemleri. <Text style={{ fontWeight: '800' }}>Tekrar girme</Text>, çift sayılır. Bu arabaya bağlaman yeter.</Text>
+                    <Btn small title="Bu arabaya bağla" onPress={() => { let n = 0; update((s) => { n = core.linkCarTx(s, c.id); }); toast(n + ' harcama arabaya bağlandı'); }} />
+                  </View>
+                ) : null; })()}
                 <BtnRow><Btn kind="pri" full title="+ Araba gideri" onPress={() => nav.openExpense({ preset: { cat: 'Araba', car: c.id } })} /></BtnRow>
                 {tx.length ? <View style={{ marginTop: 6 }}>{tx.slice().sort((a, b) => core.pd(b.date).getTime() - core.pd(a.date).getTime()).slice(0, 5).map((x, i) => <Row key={x.id} first={i === 0} title={`${x.sub || 'Gider'}${x.note ? ' · ' + x.note : ''}`} sub={`${core.dshort(core.pd(x.date))} · ${core.srcName(S, x.src)}${x.inst > 1 ? ' · ' + x.inst + ' taksit' : ''}`} right={core.fmtI(x.amt)} onPress={() => nav.openExpense({ tx: x })} />)}</View> : null}
               </Card>

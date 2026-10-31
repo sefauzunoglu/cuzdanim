@@ -1,6 +1,8 @@
 import { clock } from './clock';
-import { dateAt, iso, today, ymOf } from './dates';
-import { cardInfo, find, gp, gunC, gunPot } from './calc';
+import { dateAt, iso, pd, today, ymOf } from './dates';
+import { mClean, mKey, mNice, stmtRoot } from './merchant';
+import { recFor } from './sync';
+import { cardInfo, find, gp, gunC, gunPot, recDone } from './calc';
 import { sum, uid } from './format';
 import type { Car, Gun, GoldHold, GoldUnit, Id, Recurring, State, Tx } from './types';
 
@@ -121,3 +123,79 @@ export const gunSuggestedPay = gunC;
 export const gunSuggestedPot = gunPot;
 
 export function markBackup(S: State) { S.meta = S.meta || {}; S.meta.lastBackup = today(); }
+
+/* ---------- sabit gider: atla, yeniden aç, kaydet ---------- */
+/** O ayı atlar (yenilenmedi, iptal ettim): borca ve listeye eklenmez, otomatik işleme de eklemez. */
+export function skipRecurring(S: State, recId: Id, month: number) { (S.recSkip = S.recSkip || {})[recId + '|' + month] = 1; }
+export function unskipRecurring(S: State, recId: Id, month: number) { if (S.recSkip) delete S.recSkip[recId + '|' + month]; }
+
+export interface RecInput {
+  id?: Id; kind: Recurring['kind']; name: string; key?: string; amt: number; day: number; src: string; auto: boolean; active?: boolean;
+  /** Kart harcamasından seçilerek eklendiyse o harcama: o ayın gideri ödendi sayılır, çift eklenmez */
+  fromTx?: Id;
+}
+/** Sabit gideri ekler veya günceller. Otomatik işlemeyi açınca veya durdurulmuş gideri yeniden açınca geçmiş aylar işlenmez. */
+export function saveRecurring(S: State, input: RecInput): Recurring {
+  const o: Partial<Recurring> = { kind: input.kind, name: input.name, key: (input.key || '').trim(), amt: input.amt, day: input.day, src: input.src, auto: input.auto };
+  const x = input.id ? find(S.recurring, input.id) : undefined;
+  if (x) {
+    if (input.auto && !x.auto) o.autoFrom = ymOf(clock.now());
+    const was = x.active !== false;
+    Object.assign(x, o);
+    if (input.active !== undefined) {
+      x.active = input.active;
+      if (x.active && !was) x.autoFrom = ymOf(clock.now());
+    }
+    processAuto(S);
+    return x;
+  }
+  const r: Recurring = { ...(o as Omit<Recurring, 'id'>), id: uid(), active: true, ...(input.auto ? { autoFrom: ymOf(clock.now()) } : {}) };
+  S.recurring.push(r);
+  if (input.fromTx) {
+    const tx = find(S.tx, input.fromTx);
+    if (tx) { tx.rec = r.id; S.recPaid[r.id + '|' + ymOf(pd(tx.date))] = tx.id; }
+  }
+  processAuto(S);
+  return r;
+}
+
+const SUBRE = /NETFLIX|SPOTIFY|YOUTUBE|DISNEY|APPLE\.COM|ICLOUD|AMAZON|EXXEN|BLUTV|GAIN|TURKCELL|VODAFONE|TURK TELEKOM|TTNET|SUPERONLINE|IGDAS|ENERJISA|SU IDARE|ISKI|FATURA|AIDAT|SIGORTA|CLAUDE|ANTHROPIC|OPENAI|CHATGPT|GOOGLE|MICROSOFT/;
+export interface RecPickGroup { k: string; name: string; last: Tx; n: number; months: number; amts: number[]; dup: boolean; sug: boolean }
+
+/** Kart harcamalarını işyerine göre gruplar: sabit gider ekleme ekranında "kartından seç" listesi. Önerilenler başta. */
+export function recPickGroups(S: State): RecPickGroup[] {
+  const g: Record<string, RecPickGroup & { ms: Set<number> }> = {};
+  S.tx.filter((t) => String(t.src).startsWith('card:') && !(t.inst > 1) && !t.rec).forEach((t) => {
+    const k = mKey(t.note || '');
+    if (!k) return;
+    const x = g[k] || (g[k] = { k, name: mClean(t.note || ''), last: t, n: 0, months: 0, amts: [], dup: false, sug: false, ms: new Set() });
+    x.n++; x.amts.push(t.amt); x.ms.add(ymOf(pd(t.date)));
+    if (pd(t.date) > pd(x.last.date)) x.last = t;
+  });
+  return Object.values(g).map((x) => {
+    const card = find(S.cards, x.last.src.slice(5)), dup = !!card && !!recFor(S, card, x.name), u = x.name.toUpperCase();
+    const months = x.ms.size;
+    const sug = !dup && (x.last.cat === 'Fatura' || SUBRE.test(u) || (months > 1 && Math.max(...x.amts) <= Math.min(...x.amts) * 1.1));
+    const { ms, ...rest } = x; void ms;
+    return { ...rest, months, dup, sug };
+  }).sort((a, b) => (+b.sug - +a.sug) || (b.months - a.months) || (b.last.amt - a.last.amt));
+}
+
+/** Seçilen kart harcamasından sabit gider formu için başlangıç değerleri. */
+export function recPrefill(g: RecPickGroup) {
+  const t = g.last, u = g.name.toUpperCase();
+  const toks = stmtRoot(g.name).replace(/İ/g, 'I').split(' ').filter((w) => w && !/^\d+$/.test(w));
+  const kind: Recurring['kind'] = /FATURA|TURKCELL|VODAFONE|TELEKOM|TTNET|SUPERONLINE|IGDAS|ENERJISA|ISKI|SU IDARE/.test(u) || t.cat === 'Fatura' ? 'Fatura'
+    : (t.cat === 'Eğlence' || SUBRE.test(u) ? 'Abonelik' : 'Diğer');
+  return { name: mNice(toks.slice(0, 3).join(' ')), key: toks.slice(0, 2).join(' '), amt: t.amt, day: pd(t.date).getDate(), src: t.src, kind, fromTx: t.id };
+}
+
+/* ---------- araba ---------- */
+/** Kategorisi "Araba" olup arabaya bağlı olmayan harcamalar (örneğin bankadan aktarılan yakıt). */
+export const unlinkedCarTx = (S: State) => S.tx.filter((t) => t.cat === 'Araba' && !t.car);
+/** Bunların hepsini verilen arabaya bağlar; bağlanan sayıyı döndürür. */
+export function linkCarTx(S: State, carId: Id): number {
+  let n = 0;
+  S.tx.forEach((t) => { if (t.cat === 'Araba' && !t.car) { t.car = carId; n++; } });
+  return n;
+}

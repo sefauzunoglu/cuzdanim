@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "test": "tsx tests/core.test.ts",
+    "test": "tsx tests/core.test.ts && tsx tests/statement.test.ts && tsx tests/statementTable.test.ts && tsx tests/sync.test.ts",
     "typecheck": "tsc --noEmit",
     "start": "expo start",
     "ios": "expo start --ios",
@@ -31,6 +31,8 @@
     "react-native": "0.88.0",
     "react-native-safe-area-context": "~5.10.1",
     "react-native-svg": "^15.16.0",
-    "react-native-web": "^0.21.4"
+    "react-native-web": "^0.21.4",
+    "react-native-webview": "^14.0.1",
+    "xlsx": "^0.18.5"
   }
 }

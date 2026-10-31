@@ -1,4 +1,4 @@
-# Özellik kontrol listesi (PWA sürüm 14 → React Native)
+# Özellik kontrol listesi (PWA sürüm 51 ile eşit → React Native)
 
 Her madde çeviri sonunda tek tek doğrulanır. **Çekirdek** = hesaplama/işlem mantığı (`src/core`), **Ekran** = React Native arayüzü.
 Durum: ✅ tamam · ⬜ yapılacak. Ekran ✅ = React Native'de yazıldı ve telefon boyutunda web çıktısında görsel olarak kontrol edildi; gerçek iPhone denemesi ayrı bir adım.
@@ -68,26 +68,52 @@ Durum: ✅ tamam · ⬜ yapılacak. Ekran ✅ = React Native'de yazıldı ve tel
 | Borçtan çıkış senaryosu: ekstra ve tek seferlik ödeme, çığ/kartopu, grafik, boş para tahmini | ✅ | ✅ |
 | Hesaplar: bakiye, nakit akışı ("para nereye gitti") | ✅ | ✅ |
 
-## Ekstreden içe aktarma (yeni, önce web uygulamasında)
+## Bankadan güncelle (PWA sürüm 51 ile eşit)
 | Özellik | Çekirdek | Ekran |
 |---|---|---|
-| Ekstre PDF'i veya yapıştırılan metinden harcama satırlarını okuma (`src/core/statement.ts`, 10 test) | ✅ | ⬜ |
-| Okunanları onaylatma, kategori düzeltme, tekrar kontrolü, taksit için kalan taksitler, ödeme/iade ayrımı | ✅ | ⬜ |
-| Ekstre özeti (kesim, son ödeme, dönem borcu, asgari) gösterme ve kart günlerini güncelleme | ✅ | ⬜ |
+| Tek giriş: kart ayrıntısında **Bankadan güncelle**; Excel (.xls/.xlsx/.csv) veya Garanti ekstre PDF'i seç, büyük "Dosya seç" alanı | ✅ | ✅ (Excel web çıktısında denendi; PDF yalnızca iPhone'da) |
+| Dönem içi dosyası: bu ayın harcamaları ve taksit parçaları; aynı dönemi yeniden yükleyince eski satırlar değiştirilir, çift sayım yok (`src/core/sync.ts`) | ✅ | ✅ |
+| Kesilmiş ekstre: satırlar geçmiş kaydı; borç "Son ekstreden kalan borç" kutusuyla sabitlenir, boşsa uyarı | ✅ | ✅ |
+| Garanti ekstre PDF'i: dönem borcu, asgari, kesim/son ödeme, ana ve sanal kart satırları, taksitler (`garantiPdf.ts`); dönem borcu kutuya otomatik yazılır | ✅ | ⬜ iPhone'da denenecek (pdf.js internetten yüklenir, görünmez WebView) |
+| PDF'teki kesim tarihiyle taksitler bankanın dönemine oturur; mevcut kayıtlar yeniden yüklemede düzelir (`Tx.sd`) | ✅ | ✅ |
+| Taksit eşleştirme: banka kuruş farkı ve şehir eki toleransı, açıklama kökü kısmi eşleşme | ✅ | ✅ |
+| Ana/sanal kart satırlarını son 4 haneyle eşleme, sanal kart seçimi | ✅ | ✅ |
+| Bankadaki kullanılabilir limitle isteğe bağlı kontrol mesajı | ✅ | ✅ |
+| Kart formu sadeleşti: takip başlangıcı ve kalan borç soruları kalktı; son 4 hane ve sanal kart ekleme | – | ✅ |
 
-## Ekstre Excel/CSV ve sanal kartlar (yeni, önce web uygulamasında)
+## Kart ayrıntısı ve borç mantığı (PWA sürüm 51 ile eşit)
 | Özellik | Çekirdek | Ekran |
 |---|---|---|
-| Excel/CSV ekstre okuma, çok kartlı dosya, kartın son 4 hanesiyle eşleştirme (`statementTable.ts`, 8 test) | ✅ | ⬜ |
-| Sanal kartlar: ana karta bağlı, limit ve ekstre ortak, harcama sanal karta etiketli (`Card.vcards`, `Tx.vc`) | ✅ (tür) | ⬜ |
-| Harcama formunda sanal kart seçimi, Harcamalar'da sanal karta göre gruplama/filtre, kart ayrıntısında sanal kart özeti | – | ⬜ |
-| Excel bölümlerini kart veya sanal karta otomatik eşleme, tekrar kontrolü (yalnızca önceden kayıtlılara karşı) | – | ⬜ |
+| Devreden borç: son ödeme geçince "gecikti" yok, asgari yok, faiz işliyor; sonraki ekstre = devreden + dönem içi + tahmini faiz | ✅ | ✅ |
+| "Ekstreyi nasıl ödersen?": tamamı / sadece asgari (sonraki ekstre ve asgarisi) / asgari altı | ✅ | ✅ |
+| Dört sekme: Özet, Dönem içi, Taksitler, Önceki; her listede kategori düğmeleri ve filtre | – | ✅ |
+| Özet ve Yaklaşan'da devreden borç / tahmini ekstre metinleri | ✅ | ✅ |
+| Harcamalar: ana kart filtresi sanalı içermez, sanal kart ayrı seçenek; harcama formunda sanal kart kaynağı | ✅ | ✅ |
+
+## Toplu kategorileme (PWA sürüm 51 ile eşit)
+| Özellik | Çekirdek | Ekran |
+|---|---|---|
+| Kategorisi belirsiz işlemleri işyerine göre grupla, işaretle, kategori seç | ✅ | ✅ |
+| Herhangi bir kategorideki işyerlerini başka kategoriye taşı | ✅ | ✅ |
+| Yeni kategori: sadece ad, renk otomatik | ✅ | ✅ |
+| "Bu işyerlerini hep bu kategoriye koy": kural sonraki aktarmalarda uygulanır | ✅ | ✅ |
+
+## Sabit giderler ve araba (PWA sürüm 51 ile eşit)
+| Özellik | Çekirdek | Ekran |
+|---|---|---|
+| Sabit gider ekle: kart harcamalarından seç (öneriler, arama, otomatik doldurma, o ayın gideri ödendi sayılır) veya elle | ✅ | ✅ |
+| "Bankada nasıl yazar?": ekstrede bu yazıyı görünce o ay ödendi sayılır, otomatik kayıt gerçek kayıtla değişir | ✅ | ✅ |
+| Bu ay yenilenmedi / atla, atlamayı geri al | ✅ | ✅ |
+| Durdurulmuş gideri yeniden açınca geçmiş aylar işlenmez | ✅ | ✅ |
+| Araba: bankadan aktarılan araba harcamalarını arabaya bağla; tek araba varsa aktarmada otomatik | ✅ | ✅ |
 
 ## Notlar
 - Eski veriyi taşıma: PWA'daki yedek metni yeni uygulamaya geri yüklenebilmeli (`migrate` bunu karşılar).
-- Çekirdeğin doğruluğu: `npm test` (19 birim testi) ve `tests/parity.ts` (eski uygulamayla 5 farklı tarihte birebir karşılaştırma).
+- Çekirdeğin doğruluğu: `npm test` (çekirdek, ekstre, Excel ve bankadan güncelle testleri; sahte veriyle) ve `tests/parity.ts` (PWA'nın son sürümüyle 5 farklı tarihte birebir karşılaştırma, ayrıca PDF ayrıştırma ve işyeri yardımcıları).
 
 ## Gerçek iPhone'da denenmesi gerekenler (web çıktısında doğrulanamayanlar)
+- **PDF okuma**: Bankadan güncelle → PDF seç. `src/PdfText.tsx` görünmez bir WebView'de pdf.js (cdnjs) çalıştırır; internet gerekir, 40 sn içinde cevap gelmezse Excel'e yönlendirir. Çalışmazsa Excel yolu eşdeğerdir (kesilmiş ekstre için Son ekstreden kalan borç kutusunu elle doldur).
+- Dosya seçici (Excel/PDF) iOS Dosyalar penceresi
 - Tarih seçici (iOS yerel seçici), klavye açılınca formların kayması, alt çubuğun ve üst başlığın güvenli alanları
 - Yedek: Dosyalar/iCloud'a kaydet menüsü, yedek dosyası seçici, metni kopyalama
 - Canlı altın fiyatı çekme (servis erişimi) ve açılışta otomatik yenileme

@@ -5,12 +5,29 @@ import type { Account, Card, Debt, Gun, GoldUnit, Id, State, Tx } from './types'
 
 export const find = <T extends { id: Id }>(arr: T[], id: Id) => arr.find((x) => x.id === id);
 
+/** Sabit gider o ay ödendi veya atlandı mı? */
+export const recDone = (S: State, r: { id: Id }, m: number) => S.recPaid[r.id + '|' + m] || (S.recSkip || {})[r.id + '|' + m];
+
 export const srcName = (S: State, s?: string) => {
   if (!s) return '—';
   const [k, id] = s.split(':');
   const o = find<any>(k === 'card' ? S.cards : S.accounts, id);
   return o ? o.name : '(silinmiş)';
 };
+
+/** Kaynak seçenekleri: kart, kartın sanal kartları ("vcard:KART:SANAL") ve hesaplar. */
+export const srcOptions = (S: State): [string, string][] => {
+  const o: [string, string][] = [];
+  S.cards.forEach((c) => { o.push(['card:' + c.id, c.name]); (c.vcards || []).forEach((v) => o.push(['vcard:' + c.id + ':' + v.id, '↳ ' + v.name + ' (sanal)'])); });
+  S.accounts.forEach((a) => o.push(['acc:' + a.id, a.name]));
+  return o;
+};
+/** "vcard:K:V" → {src:'card:K', vc:'V'}; diğerleri aynen. */
+export const parseSrc = (v: string) => {
+  if (v && v.startsWith('vcard:')) { const [, cid, vid] = v.split(':'); return { src: 'card:' + cid, vc: vid }; }
+  return { src: v, vc: '' };
+};
+export const srcVal = (t: { src: string; vc?: string }) => (t.vc && t.src.startsWith('card:') ? 'vcard:' + t.src.slice(5) + ':' + t.vc : t.src);
 
 /* ---------- hesaplar ---------- */
 export function accBal(S: State, a: Account) {
@@ -59,18 +76,23 @@ export function cardInfo(S: State, c: Card) {
   const closedDebt = Math.max(0, billed - paid), over = Math.max(0, paid - billed), openDebt = Math.max(0, open - over);
   const currentDebt = closedDebt + openDebt, used = currentDebt + future;
   const minRate = c.minAuto === false ? (c.minRate || 20) : autoMinRate(c.limit || 0);
-  const min = closedDebt > 0 ? Math.min(closedDebt, Math.max(closedDebt * minRate / 100, Math.min(closedDebt, 100))) : 0;
+  const minRaw = closedDebt > 0 ? Math.min(closedDebt, Math.max(closedDebt * minRate / 100, Math.min(closedDebt, 100))) : 0;
   const recOnCard = sum(
-    S.recurring.filter((r) => r.active !== false && r.src === 'card:' + c.id && !S.recPaid[r.id + '|' + ymOf(now)]),
+    S.recurring.filter((r) => r.active !== false && r.src === 'card:' + c.id && !recDone(S, r, ymOf(now))),
     (r) => r.amt);
-  const nextEst = openDebt + recOnCard;
-  const due = stmtDue(c, cur - 1);
+  const due = stmtDue(c, cur - 1), dueIn = daysTo(due);
+  /* Son ödeme tarihi geçmiş kesilmiş borç "devreden borç"tur: faiz işler, bir sonraki ekstreye eklenir; ayrıca asgari istenmez. */
+  const pastDue = closedDebt > 0.5 && dueIn < 0, devir = pastDue ? closedDebt : 0, min = pastDue ? 0 : minRaw;
   const rate = c.rateAuto === false ? (c.rate || 0) : autoRate(Math.max(closedDebt, currentDebt));
   const carry = Math.max(0, closedDebt - min), carryInt = carry * rate / 100, lateInt = min * (rate + LATE) / 100;
+  const interestNext = pastDue ? carryInt : 0;
+  /* Banka ekstresi = devreden borç + dönem içi harcama + faiz/ücret; asgari bu toplamın yüzdesi. */
+  const nextEst = devir + openDebt + recOnCard + interestNext;
   return {
     rate, carry, carryInt, lateInt, cur, closedDebt, openDebt, currentDebt, future, used,
     avail: (c.limit || 0) - used, util: c.limit ? used / c.limit : 0, min, minRate,
-    nextEst, nextMin: nextEst * minRate / 100, due, dueIn: daysTo(due), dueOpen: stmtDue(c, cur), recOnCard, ch,
+    pastDue, devir, interestNext, nextCut: stmtRange(c, cur)[1],
+    nextEst, nextMin: nextEst * minRate / 100, due, dueIn, dueOpen: stmtDue(c, cur), recOnCard, ch,
   };
 }
 export type CardInfo = ReturnType<typeof cardInfo>;
@@ -159,13 +181,15 @@ export function upcoming(S: State, days = 14): Upcoming[] {
   const out: Upcoming[] = [], cm = ymOf(clock.now());
   S.cards.forEach((c) => {
     const i = cardInfo(S, c);
-    if (i.closedDebt > 0.5)
-      out.push({ d: i.due, t: c.name + ' ekstresi', s: 'Asgari ' + fmt(i.min) + ' · Dönem borcu ' + fmt(i.closedDebt), amt: i.closedDebt, k: 'card', id: c.id, out: true });
+    if (i.closedDebt > 0.5 && !i.pastDue)
+      out.push({ d: i.due, t: c.name, s: 'Ekstre son ödeme · asgari ' + fmt(i.min), amt: i.closedDebt, k: 'card', id: c.id, out: true });
+    else if (i.nextEst > 0.5)
+      out.push({ d: i.dueOpen, t: c.name, s: 'Tahmini ekstre · asgari ~' + fmt(i.nextMin), amt: i.nextEst, k: 'card', id: c.id, out: true });
   });
   S.recurring.filter((r) => r.active !== false).forEach((r) => {
     let m = cm;
-    if (S.recPaid[r.id + '|' + m]) m++;
-    if (S.recPaid[r.id + '|' + m]) return;
+    if (recDone(S, r, m)) m++;
+    if (recDone(S, r, m)) return;
     out.push({ d: dateAt(m, r.day), t: r.name, s: r.kind + (r.src ? ' · ' + srcName(S, r.src) : ''), amt: r.amt, k: 'rec', id: r.id, m, out: true });
   });
   S.incomeRec.forEach((r) => {

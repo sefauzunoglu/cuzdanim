@@ -16,17 +16,18 @@ export function Spend() {
   const [filter, setFilter] = useState('all');
   const [group, setGroup] = useState<Group>('day');
   const ps = core.monthParts(S, month).sort((a, b) => core.pd(b.tx.date).getTime() - core.pd(a.tx.date).getTime());
-  const list = filter === 'all' ? ps : ps.filter((p) => p.tx.src === filter);
+  const pf = core.parseSrc(filter);
+  const list = filter === 'all' ? ps : ps.filter((p) => (pf.vc ? p.tx.src === pf.src && p.tx.vc === pf.vc : p.tx.src === filter && !(filter.startsWith('card:') && p.tx.vc)));
   const tot = core.sum(list, (p) => p.amt), inc = core.monthIncome(S, month);
   const cat: Record<string, number> = {};
   list.forEach((p) => { cat[p.tx.cat] = (cat[p.tx.cat] || 0) + p.amt; });
   const cats = Object.entries(cat).sort((a, b) => b[1] - a[1]);
-  const sources: [string, string][] = [['all', 'Tümü'], ...S.cards.map((c) => ['card:' + c.id, c.name] as [string, string]), ...S.accounts.map((a) => ['acc:' + a.id, a.name] as [string, string])];
+  const sources: [string, string][] = [['all', 'Tümü'], ...core.srcOptions(S).map(([v, l]) => { const cc = v.startsWith('card:') ? core.find(S.cards, v.slice(5)) : undefined; return [v, cc && (cc.vcards || []).length ? l + ' (ana kart)' : l] as [string, string]; })];
 
   const row = (p: core.Part, first: boolean) => (
     <Row key={p.tx.id + ':' + p.k} first={first} lead={<CatLead cat={p.tx.cat} />}
       title={`${p.tx.note || p.tx.cat}${p.tx.sub ? ' · ' + p.tx.sub : ''}`}
-      sub={`${p.tx.cat} · ${core.dshort(core.pd(p.tx.date))} · ${core.srcName(S, p.tx.src)}${p.n > 1 ? ` · ${p.k + 1}/${p.n}. taksit` : ''}`}
+      sub={`${p.tx.cat} · ${core.dshort(core.pd(p.tx.date))} · ${core.srcName(S, p.tx.src)}${p.tx.vc ? ' › ' + ((S.cards.find((c) => 'card:' + c.id === p.tx.src)?.vcards || []).find((v) => v.id === p.tx.vc)?.name || 'sanal kart') : ''}${p.n > 1 ? ` · ${p.k + 1}/${p.n}. taksit` : ''}`}
       right={core.fmt(p.amt)} rightSub={p.n > 1 ? `toplam ${core.fmtI(p.tx.amt)}` : undefined}
       onPress={() => nav.openExpense({ tx: p.tx })} />
   );
@@ -40,11 +41,12 @@ export function Spend() {
   let body: React.ReactNode;
   if (!list.length) body = <Card><Empty title="Bu ay harcama yok" text="Alttaki + düğmesiyle bir harcama ekle." /></Card>;
   else if (group === 'card') {
-    const keys = [...new Set(list.map((p) => p.tx.src))].sort();
+    const gk = (p: core.Part) => p.tx.src + (p.tx.vc ? '|' + p.tx.vc : '');
+    const keys = [...new Set(list.map(gk))].sort();
     body = keys.map((k) => {
-      const g = list.filter((p) => p.tx.src === k), c: Record<string, number> = {};
+      const g = list.filter((p) => gk(p) === k), c: Record<string, number> = {};
       g.forEach((p) => { c[p.tx.cat] = (c[p.tx.cat] || 0) + p.amt; });
-      return groupCard(core.srcName(S, k), Object.entries(c).sort((a, b) => b[1] - a[1]).map(([n, v]) => n + ' ' + core.fmtI(v)).join(' · '), core.sum(g, (p) => p.amt), g);
+      return groupCard(core.srcName(S, k.split('|')[0]) + (k.includes('|') ? ' › ' + ((S.cards.find((cc) => 'card:' + cc.id === k.split('|')[0])?.vcards || []).find((v) => v.id === k.split('|')[1])?.name || 'sanal kart') : ''), Object.entries(c).sort((a, b) => b[1] - a[1]).map(([n, v]) => n + ' ' + core.fmtI(v)).join(' · '), core.sum(g, (p) => p.amt), g);
     });
   } else if (group === 'cat') body = cats.map(([n]) => { const g = list.filter((p) => p.tx.cat === n); return groupCard(n, undefined, core.sum(g, (p) => p.amt), g, <CatLead cat={n} />); });
   else body = <Card>{list.map((p, i) => row(p, i === 0))}</Card>;

@@ -36,6 +36,8 @@ export interface DebtPay { id: Id; debt: Id; date: string; amt: number; gold?: G
 export interface Recurring {
   id: Id; kind: 'Kira' | 'Fatura' | 'Abonelik' | 'Diğer'; name: string; amt: number; day: number;
   src: SrcRef | ''; active?: boolean; auto?: boolean; autoFrom?: number;
+  /** Bankada görünen yazı: ekstrede bu yazıyı görünce o ayın gideri ödendi sayılır */
+  key?: string;
 }
 export interface IncomeRec { id: Id; name: string; amt: number; day: number; acc: Id }
 export interface Car { id: Id; name: string; plate?: string; km?: number; inspect?: string; insurance?: string; kasko?: string }
@@ -52,6 +54,12 @@ export interface State {
   cardPay: CardPay[]; debts: Debt[]; debtPay: DebtPay[]; recurring: Recurring[];
   recPaid: Record<string, Id>; recSkip?: Record<string, 1>;
   incomeRec: IncomeRec[]; incPaid: Record<string, Id>; cars: Car[]; gun: Gun[];
-  cfg: { gold?: GoldPrices; noIcons?: boolean; goldPrice?: number; theme?: 'light' | 'dark' };
+  cfg: {
+    gold?: GoldPrices; noIcons?: boolean; goldPrice?: number; theme?: 'light' | 'dark';
+    /** Kullanıcının açtığı kategoriler */
+    cats?: string[];
+    /** İşyeri → kategori kuralları (bankadan aktarmada otomatik uygulanır) */
+    rules?: { k: string; cat: string }[];
+  };
   meta: { demo?: boolean; lastBackup?: string };
 }

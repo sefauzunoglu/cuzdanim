@@ -199,3 +199,37 @@ export function Sheet({ visible, title, onClose, children, footer, above }: { vi
     </Modal>
   );
 }
+
+/** İşaret kutusu satırı (liste içinde seçim). */
+export function CheckRow({ checked, onToggle, title, sub, right }: { checked: boolean; onToggle: () => void; title: string; sub?: string; right?: string }) {
+  const t = useTheme();
+  return (
+    <Pressable onPress={onToggle} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line }}>
+      <View style={{ width: 24, height: 24, borderRadius: 7, borderWidth: 1.8, borderColor: checked ? t.accent : t.muted, backgroundColor: checked ? t.accent : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+        {checked ? <Icon name="check" size={16} color={t.accentInk} width={2.6} /> : null}
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={{ color: t.ink, fontWeight: '600', fontSize: 15 }}>{title}</Text>
+        {sub ? <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12.5 }}>{sub}</Text> : null}
+      </View>
+      {right ? <Text style={[{ color: t.ink, fontWeight: '700', fontSize: 15 }, FONT_NUM]}>{right}</Text> : null}
+    </Pressable>
+  );
+}
+
+/** Büyük, kesikli çerçeveli dosya seçme alanı. */
+export function PickButton({ title, sub, done, onPress }: { title: string; sub?: string; done?: boolean; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 16, backgroundColor: t.accentSoft, borderWidth: 1.5, borderColor: t.accent, borderStyle: done ? 'solid' : 'dashed', marginVertical: 6, marginBottom: 12 }}>
+      <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name={done ? 'check' : 'file'} size={22} color={t.accentInk} /></View>
+      <View style={{ flex: 1 }}><Text style={{ color: t.ink, fontWeight: '800', fontSize: 15.5 }}>{title}</Text>{sub ? <Text numberOfLines={2} style={{ color: t.muted, fontSize: 12.5, marginTop: 2 }}>{sub}</Text> : null}</View>
+    </Pressable>
+  );
+}
+
+/** İsteğe bağlı bilgi/uyarı kutusu. */
+export function Note({ tone = 'info', children }: { tone?: 'info' | 'warn'; children: React.ReactNode }) {
+  const t = useTheme();
+  return <View style={{ backgroundColor: tone === 'warn' ? t.warnSoft : t.accentSoft, borderRadius: 12, padding: 10, marginBottom: 10 }}><Text style={{ color: tone === 'warn' ? t.warn : t.ink, fontSize: 13.5 }}>{children}</Text></View>;
+}

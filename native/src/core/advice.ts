@@ -1,5 +1,5 @@
 import { clock } from './clock';
-import { daysTo, pd, ymOf } from './dates';
+import { daysTo, dshort, pd, ymOf } from './dates';
 import { debtBal, freeCash, goldDesc, goldVal, monthParts, totals, upcoming } from './calc';
 import { fmt, fmtI, pc, sum } from './format';
 import type { State } from './types';
@@ -12,16 +12,19 @@ export function advice(S: State): Tip[] {
   const o: Tip[] = [], t = totals(S), cm = ymOf(clock.now()), up = upcoming(S, 30), fc = freeCash(S);
   S.cards.forEach((c, i) => {
     const x = t.ci[i];
-    if (x.closedDebt > 0.5) {
-      const lb = x.dueIn < 0 ? `${-x.dueIn} gün gecikti` : x.dueIn === 0 ? 'son ödeme bugün' : x.dueIn + ' gün kaldı';
-      o.push({ l: x.dueIn <= 3 ? 'bad' : 'warn', t: `${c.name}: ekstre ${lb}`,
-        s: `Dönem borcu ${fmt(x.closedDebt)}, asgari ${fmt(x.min)}. Tamamını ödersen faiz işlemez; yalnızca asgariyi ödersen kalan ${fmt(x.carry)} için aylık yaklaşık ${fmt(x.carryInt)} faiz (%${pc(x.rate)}) işler.`, go: 'cards' });
+    if (x.pastDue)
+      o.push({ l: 'warn', t: `${c.name}: devreden borç ${fmt(x.devir)}`,
+        s: `Son ödeme tarihi (${dshort(x.due)}) geçti. Bu tutara aylık yaklaşık ${fmt(x.interestNext)} faiz (%${pc(x.rate)}) işliyor ve ${dshort(x.nextCut)} ekstresine eklenecek. Ödeme yaparsan faiz azalır.`, go: 'cards' });
+    else if (x.closedDebt > 0.5) {
+      const lb = x.dueIn === 0 ? 'son ödeme bugün' : x.dueIn + ' gün kaldı';
+      o.push({ l: x.dueIn <= 3 ? 'bad' : 'warn', t: `${c.name}: ekstre son ödemesine ${lb}`,
+        s: `Ekstre borcu ${fmt(x.closedDebt)}, asgari ${fmt(x.min)}. Tamamını ödersen faiz işlemez; yalnızca asgariyi ödersen kalan ${fmt(x.carry)} için aylık yaklaşık ${fmt(x.carryInt)} faiz (%${pc(x.rate)}) işler.`, go: 'cards' });
     }
     if (x.util > 0.8)
       o.push({ l: 'bad', t: `${c.name} limiti %${Math.round(x.util * 100)} dolu`, s: `Kalan limit ${fmt(x.avail)}. Yeni harcamaları nakit veya banka hesabıyla yapmayı dene.`, go: 'cards' });
     if (x.nextEst > 0)
       o.push({ l: 'info', t: `${c.name}: sonraki ekstre tahmini ${fmt(x.nextEst)}`,
-        s: `Asgari yaklaşık ${fmt(x.nextMin)}. İçinde ${fmt(sum(x.ch.filter((z) => z.idx === x.cur && z.n > 1), (z) => z.amt))} taksit var.`, go: 'cards' });
+        s: `${x.devir > 0 ? 'Devreden borç ' + fmt(x.devir) + ' + ' : ''}bu dönem harcaması ${fmt(x.openDebt)}${x.interestNext > 0 ? ' + tahmini faiz ' + fmt(x.interestNext) : ''}. Asgari yaklaşık ${fmt(x.nextMin)} (%${x.minRate}), son ödeme ${dshort(x.dueOpen)}.`, go: 'cards' });
   });
   const need = sum(up.filter((u) => u.out && u.k !== 'card'), (u) => u.amt) + sum(t.ci, (x) => x.min);
   const surplus = t.cash - need;

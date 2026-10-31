@@ -1,6 +1,7 @@
 import { iso } from './dates';
 import { clock } from './clock';
 import type { State } from './types';
+import { loadCats } from './constants';
 
 export const emptyData = (): State => ({
   v: 1, accounts: [], cards: [], tx: [], incomes: [], transfers: [], cardPay: [], debts: [], debtPay: [],
@@ -20,6 +21,7 @@ export function migrate(raw: unknown): State {
     if (d.type === 'gold' && !d.gold) { d.gold = { gram: +d.remGrams || 0 }; delete d.remGrams; }
   });
   if (S.cfg.goldPrice && !S.cfg.gold) { S.cfg.gold = { gram: S.cfg.goldPrice }; delete S.cfg.goldPrice; }
+  loadCats(S.cfg.cats);
   return S;
 }
 

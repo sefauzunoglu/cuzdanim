@@ -12,3 +12,7 @@ export * from './constants';
 export * from './preview';
 export * from './statement';
 export * from './statementTable';
+export * from './merchant';
+export * from './categorize';
+export * from './garantiPdf';
+export * from './sync';

@@ -7,5 +7,7 @@ export const CATICO: Record<string, string> = {
 };
 export const BANKS = ['Garanti BBVA', 'Akbank', 'İş Bankası', 'Yapı Kredi', 'Ziraat', 'QNB', 'Halkbank', 'VakıfBank', 'Denizbank', 'Enpara'];
 export const INST_OPTIONS = [1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 18, 24];
-/** Kategori renk sırası (0-9 arası tema paletinden). */
+/** Kategori renk sırası (0-9 arası tema paletinden). Kullanıcı kategorileri listenin sonuna eklenir, rengi otomatik verilir. */
 export const catIndex = (c: string) => { const i = CATS.indexOf(c); return (i < 0 ? 11 : i) % 10; };
+/** Kayıtlı kullanıcı kategorilerini CATS listesine ekler (uygulama açılışında ve yeni kategori eklenince). */
+export function loadCats(cats?: string[]) { (cats || []).forEach((n) => { if (!CATS.includes(n)) CATS.push(n); }); }

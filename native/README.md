@@ -9,7 +9,7 @@ Bu dal, web uygulamasının (PWA) React Native sürümünü içerir. Yayındaki 
 ```
 cd native
 npm install
-npm test            # birim testleri
+npm test            # birim testleri (çekirdek, ekstre, Excel, bankadan güncelle)
 npm run typecheck   # tür denetimi
 PWA_HTML=/yol/index.html npx tsx tests/parity.ts   # eski uygulamayla karşılaştırma (Playwright gerekir)
 ```

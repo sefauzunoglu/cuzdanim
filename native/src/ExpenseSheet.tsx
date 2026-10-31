@@ -10,7 +10,7 @@ import { Btn, Chips, DateField, Field, Label, Sheet } from './ui/kit';
 export function ExpenseSheet() {
   const { S, update, toast } = useApp(), nav = useNav(), t = useTheme();
   const req = nav.expense, tx = req?.tx;
-  const sources = useMemo(() => [...S.cards.map((c) => ['card:' + c.id, c.name] as [string, string]), ...S.accounts.map((a) => ['acc:' + a.id, a.name] as [string, string])], [S]);
+  const sources = useMemo(() => core.srcOptions(S), [S]);
   const [amt, setAmt] = useState(''), [cat, setCat] = useState('Market'), [src, setSrc] = useState(''), [inst, setInst] = useState(1);
   const [car, setCar] = useState(''), [sub, setSub] = useState('Yakıt'), [km, setKm] = useState('');
   const [date, setDate] = useState(core.today()), [note, setNote] = useState('');
@@ -20,7 +20,7 @@ export function ExpenseSheet() {
     const p = req.preset || {};
     setAmt(tx ? core.nv(tx.amt) : '');
     setCat(tx ? tx.cat : p.cat || 'Market');
-    setSrc(tx ? tx.src : p.src || (sources[0] ? sources[0][0] : ''));
+    setSrc(tx ? core.srcVal(tx) : p.src || (sources[0] ? sources[0][0] : ''));
     setInst(tx ? tx.inst || 1 : 1);
     setCar(tx ? tx.car || '' : p.car || '');
     setSub(tx ? tx.sub || 'Yakıt' : 'Yakıt');
@@ -40,8 +40,8 @@ export function ExpenseSheet() {
       </Sheet>
     );
   }
-  const amount = core.num(amt), isCard = src.startsWith('card:');
-  const prev = core.expensePreview(S, { amt: amount, src, date, inst: isCard ? inst : 1 }, tx);
+  const ps = core.parseSrc(src), amount = core.num(amt), isCard = ps.src.startsWith('card:');
+  const prev = core.expensePreview(S, { amt: amount, src: ps.src, date, inst: isCard ? inst : 1 }, tx);
   const recent = tx ? [] : S.tx.slice().reverse().filter((x, i, a) => !x.rec && a.findIndex((y) => y.note === x.note && y.cat === x.cat && y.src === x.src) === i).slice(0, 5);
 
   const save = () => {
@@ -49,12 +49,14 @@ export function ExpenseSheet() {
     let msg = 'Kaydedildi';
     update((s) => {
       core.saveExpense(s, {
-        id: tx?.id, amt: amount, cat, src, date: date || core.today(), note: note.trim(), inst: isCard ? inst : 1,
+        id: tx?.id, amt: amount, cat, src: ps.src, date: date || core.today(), note: note.trim(), inst: isCard ? inst : 1,
+        ...(ps.vc ? { vc: ps.vc } : {}),
+        ...(tx?.sd ? { sd: tx.sd } : {}), ...(tx?.hist ? { hist: true } : {}), ...(tx?.imp ? { imp: tx.imp } : {}),
         ...(cat === 'Araba' ? { sub, car: car || undefined, km: core.num(km) > 0 ? core.num(km) : undefined } : {}),
         ...(tx?.rec ? { rec: tx.rec } : {}),
       });
-      if (src.startsWith('card:')) {
-        const c = core.find(s.cards, src.slice(5));
+      if (ps.src.startsWith('card:')) {
+        const c = core.find(s.cards, ps.src.slice(5));
         if (c) { const i = core.cardInfo(s, c); msg = `${c.name}: güncel borç ${core.fmtI(i.currentDebt)}, kalan limit ${core.fmtI(i.avail)}`; }
       }
     });
@@ -76,7 +78,7 @@ export function ExpenseSheet() {
         <View style={{ marginBottom: 12 }}>
           <Label>Son harcamalar (dokun, doldur)</Label>
           <Chips value="" scroll options={recent.map((r) => [r.id, `${r.note || r.cat} · ${core.fmtI(r.amt)}`] as [string, string])}
-            onChange={(id) => { const r = core.find(S.tx, id); if (r) { setAmt(core.nv(r.amt)); setCat(r.cat); setSrc(r.src); setNote(r.note || ''); setInst(r.inst || 1); } }} />
+            onChange={(id) => { const r = core.find(S.tx, id); if (r) { setAmt(core.nv(r.amt)); setCat(r.cat); setSrc(core.srcVal(r)); setNote(r.note || ''); setInst(r.inst || 1); } }} />
         </View>
       ) : null}
       <Field label="Tutar (₺)" value={amt} onChange={setAmt} num big />
