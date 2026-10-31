@@ -204,7 +204,7 @@ const av=n=>iconsOn()?`<span class="av" aria-hidden="true" style="background:hsl
 const catLead=c=>iconsOn()?`<span class="av cat" aria-hidden="true" style="--cc:${catColor(c)}">${ico(CATICO[c]||'dots')}</span>`:`<span class="dot" style="background:${catColor(c)}"></span>`;
 
 /* ============ veri ============ */
-const KEY='cuzdanim_v1',VER=47;
+const KEY='cuzdanim_v1',VER=48;
 const emptyData=()=>({v:1,accounts:[],cards:[],tx:[],incomes:[],transfers:[],cardPay:[],debts:[],debtPay:[],recurring:[],recPaid:{},incomeRec:[],incPaid:{},cars:[],gun:[],cfg:{goldPrice:0},meta:{}});
 let mem=null;
 function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(emptyData(),JSON.parse(r))}catch(e){}
@@ -566,11 +566,11 @@ function vCardDetail(){
   <div class="chips" style="margin:14px 0 4px">${[['ozet','Özet'],['cur','Dönem içi'],['inst','Taksitler'],['prev','Önceki']].map(([v,l])=>`<button class="chip ${ui.ctab===v?'on':''}" data-act="ctab" data-v="${v}">${l}</button>`).join('')}</div>
   ${(()=>{const tab=ui.ctab;
     const chipsFor=(items,cat,amt)=>{const m={};items.forEach(x=>m[cat(x)]=(m[cat(x)]||0)+amt(x));const e=Object.entries(m).sort((x,y)=>y[1]-x[1]);return e.length>1?`<div class="chips scroll" style="margin:10px 0 6px">${e.map(([n,v])=>`<button class="chip ${ui.ccat===n?'on':''}" data-act="ccat" data-v="${esc(n)}">${n} · ${fmtI(v)}</button>`).join('')}</div>`:''};
-    const listTab=(items,title,range,emptyT)=>{const tot=sum(items,x=>x.amt),shown=ui.ccat?items.filter(x=>x.tx.cat===ui.ccat):items;
-      const unc=S.tx.filter(t=>t.src==='card:'+c.id&&t.cat==='Diğer');
-      return `<section><h2>${title}<span class="num">${fmtI(tot)}</span></h2><div class="note" style="margin:-4px 0 4px">${range}</div>${ui.ccat&&ui.ccat!=='Diğer'?`<button class="btn sm" style="width:100%;margin:6px 0" data-act="kcOpen" data-id="${c.id}" data-cat="${esc(ui.ccat)}">"${esc(ui.ccat)}" işlemlerini başka kategoriye taşı</button>`:''}${unc.length?`<button class="btn sm" style="width:100%;margin:6px 0" data-act="kcOpen" data-id="${c.id}">Kategorisi belirsiz: ${unc.length} işlem · ${fmtI(sum(unc,t=>t.amt))} · düzenle</button>`:''}${chipsFor(items,x=>x.tx.cat,x=>x.amt)}<div class="card">${shown.length?shown.map(row).join(''):empty(emptyT,'')}</div></section>`};
-    if(tab==='cur'){return listTab(ch.filter(x=>x.idx===i.cur).sort((x,y)=>pd(y.tx.date)-pd(x.tx.date)),'Bu dönem',dshort(a)+' – '+dshort(b)+' · taksit parçaları dahil','Bu dönem harcama yok')}
-    if(tab==='prev'){const [ps,pe]=stmtRange(c,i.cur-1);return listTab(ch.filter(x=>x.idx===i.cur-1).sort((x,y)=>pd(y.tx.date)-pd(x.tx.date)),'Önceki ekstre',dshort(ps)+' – '+dshort(pe),'Önceki ekstrede harcama yok')}
+    const listTab=(items,title,range,emptyT,scope)=>{const tot=sum(items,x=>x.amt),shown=ui.ccat?items.filter(x=>x.tx.cat===ui.ccat):items;
+      const uncP=items.filter(x=>x.tx.cat==='Diğer'),unc=[...new Set(uncP.map(x=>x.tx))];
+      return `<section><h2>${title}<span class="num">${fmtI(tot)}</span></h2><div class="note" style="margin:-4px 0 4px">${range}</div>${ui.ccat&&ui.ccat!=='Diğer'?`<button class="btn sm" style="width:100%;margin:6px 0" data-act="kcOpen" data-id="${c.id}" data-scope="${scope}" data-cat="${esc(ui.ccat)}">"${esc(ui.ccat)}" işlemlerini başka kategoriye taşı</button>`:''}${unc.length?`<button class="btn sm" style="width:100%;margin:6px 0" data-act="kcOpen" data-id="${c.id}" data-scope="${scope}">Kategorisi belirsiz: ${unc.length} işlem · ${fmtI(sum(uncP,x=>x.amt))} · düzenle</button>`:''}${chipsFor(items,x=>x.tx.cat,x=>x.amt)}<div class="card">${shown.length?shown.map(row).join(''):empty(emptyT,'')}</div></section>`};
+    if(tab==='cur'){return listTab(ch.filter(x=>x.idx===i.cur).sort((x,y)=>pd(y.tx.date)-pd(x.tx.date)),'Bu dönem',dshort(a)+' – '+dshort(b)+' · taksit parçaları dahil','Bu dönem harcama yok','cur')}
+    if(tab==='prev'){const [ps,pe]=stmtRange(c,i.cur-1);return listTab(ch.filter(x=>x.idx===i.cur-1).sort((x,y)=>pd(y.tx.date)-pd(x.tx.date)),'Önceki ekstre',dshort(ps)+' – '+dshort(pe),'Önceki ekstrede harcama yok','prev')}
     if(tab==='inst'){const items=act.filter(x=>!ui.ccat||x.t.cat===ui.ccat),mon=sum(act,x=>x.t.amt/x.t.inst),left=sum(act,x=>x.t.amt/x.t.inst*x.left);
       return `<section><h2>Devam eden taksitler<span class="num">${fmtI(left)}</span></h2><div class="note" style="margin:-4px 0 4px">Aylık ${fmtI(mon)} · toplam kalan ${fmtI(left)}</div>${chipsFor(act,x=>x.t.cat,x=>x.t.amt/x.t.inst*x.left)}<div class="card">${items.length?items.map(x=>`<button class="row" data-act="editTx" data-id="${x.t.id}"><div class="mid"><div class="t">${esc(x.t.note||x.t.cat)}</div><div class="s">${x.paid}/${x.t.inst} ödendi · kalan ${x.left} ay · ${x.t.cat}</div>${barPct(x.paid/x.t.inst)}</div><div class="amt num">${fmtI(x.t.amt/x.t.inst)}<small>kalan ${fmtI(x.t.amt/x.t.inst*x.left)}</small></div></button>`).join(''):empty('Devam eden taksit yok','')}</div></section>`}
     /* Özet */
@@ -771,10 +771,11 @@ let kcCat='',kcSrc='Diğer';
 A.kcSel=d=>{kcCat=d.v;const n=$('#kc_new');if(n)n.value='';$$('#kc_chips .chip').forEach(c=>c.classList.toggle('on',c.dataset.v===kcCat))};
 A.kcAll=d=>{$$('.kc_g').forEach(e=>e.checked=d.on==='1')};
 A.kcOpen=d=>{const c=find(S.cards,d.id);if(!c)return;kcCat='';kcSrc=d.cat||'Diğer';
-  const g={};S.tx.filter(t=>t.src==='card:'+c.id&&t.cat===kcSrc).forEach(t=>{const k=mKey(t.note||'');if(!k)return;const x=g[k]||(g[k]={k,name:(t.note||'').replace(/ ?\(kalan taksitler\)/,''),n:0,tot:0});x.n++;x.tot+=t.amt/(t.inst||1)*(t.inst||1)});
+  const ci=cardInfo(c),sidx=d.scope==='prev'?ci.cur-1:ci.cur,inScope=new Set(ci.ch.filter(x=>x.idx===sidx).map(x=>x.tx.id));
+  const g={};S.tx.filter(t=>t.src==='card:'+c.id&&t.cat===kcSrc&&inScope.has(t.id)).forEach(t=>{const k=mKey(t.note||'');if(!k)return;const x=g[k]||(g[k]={k,name:(t.note||'').replace(/ ?\(kalan taksitler\)/,''),n:0,tot:0});x.n++;x.tot+=t.amt/(t.inst||1)*(t.inst||1)});
   const gs=Object.values(g).sort((a,b)=>b.tot-a.tot);
   if(!gs.length){toast('Bu kategoride işlem yok');return}
-  openSheet({title:kcSrc==='Diğer'?'Kategorisi belirsiz işlemler':kcSrc+' işlemlerini taşı',body:`<div class="note" style="margin-top:0">Aynı işyerleri birlikte gelir. Önce kategoriyi seç (veya yeni ad yaz), sonra işyerlerini işaretle.</div>
+  openSheet({title:kcSrc==='Diğer'?'Kategorisi belirsiz işlemler':kcSrc+' işlemlerini taşı',body:`<div class="note" style="margin-top:0">Aynı işyerleri birlikte gelir. Önce kategoriyi seç (veya yeni ad yaz), sonra işyerlerini işaretle. Aynı işyerinin diğer dönemlerdeki işlemleri de taşınır.</div>
    <div class="f"><span>1. Hangi kategori?</span><div class="chips scroll" id="kc_chips">${CATS.filter(n=>n!=='Diğer'&&n!==kcSrc).map(n=>`<button type="button" class="chip" data-act="kcSel" data-v="${esc(n)}">${n}</button>`).join('')}</div></div>
    ${fld('kc_new','veya yeni kategori adı','',{ph:'örn. Kuruyemiş'})}
    <label class="row" style="cursor:pointer;border:0"><input type="checkbox" id="kc_rule" checked style="width:22px;height:22px;flex:none"><div class="mid"><div class="t">Bu işyerlerini hep bu kategoriye koy</div><div class="s">Sonraki Excel ve PDF aktarmalarında otomatik uygulanır</div></div></label>
